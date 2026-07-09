@@ -295,3 +295,27 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Security Is Being Taken Over" item).
 
 **Status:** Root cause and real-world scale confirmed, live data validates "always approved" with zero exceptions. Fix not yet implemented (documentation-only phase). This closes out the full Priority-2 automation list — all 12 items now reviewed (Duplicate Dividend was covered earlier under the Highest-Priority item-1 finding).
+
+---
+
+## 2026-07-09 — Rarely Seen / Outdated Analyst Tasks: last-occurrence check reveals the label is only accurate for 2 of 5
+
+**Request:** the doc lists 5 task types as "Rarely seen / outdated": Limeburner Discrepancy, Whack Date, Date Breaks a Rule, Dividends Appear Too Close, Security Associated with ETF type is not ETF. Checked actual last-occurrence data for each before treating any as safe to remove.
+
+**Findings:**
+
+| Task | Total ever | Last occurred | Verdict |
+|---|---|---|---|
+| Limeburner Discrepancy (22) | 173 | 2024-01-25 (~2.5 yrs ago) | Genuinely dormant — matches the label |
+| Whack Date (27) | 50 | 2026-06-26 (~2 weeks ago) | **Not rare** — mislabeled |
+| Date Breaks a Rule (30) | 5,649 | 2026-07-08 (yesterday) | **Not rare at all** — high-volume, active, badly mislabeled |
+| Dividends Appear Too Close / `CLOSE_DIVIDENDS` (38) | 0 | never | Investigated further below |
+| ETF Security Type Not ETF (43) | 0 | never | Investigated further below |
+
+**`CLOSE_DIVIDENDS`/`CloseDividendsCheck` — genuinely dead code, safe to consider removing (or wiring in).** Confirmed zero callers anywhere in the app (`grep` across `app/`, `lib/`, `config/` finds only the class's own definition) — never invoked from `AnalystTaskRunner` or anywhere else. Has a spec (`spec/tasks/close_dividends_check_spec.rb`), matching the exact "built, tested, never wired in" orphan pattern the original audit already documented for a different check (`SecurityPrimaryExchangeCheck`). This is now a second confirmed instance of that same pattern.
+
+**`ETF_SECURITY_TYPE_NOT_ETF`/`SecurityWithEtfTypeCheck` — NOT safe to remove; same invocation-gap bug as Missing Ticker/ISIN.** This check IS properly wired into `AnalystTaskRunner` (`analyst_task_runner.rb:85`). Live-checked the real data directly rather than trusting "zero tasks means zero cases": **49 securities right now** are associated with an ETF (`etfs.security_id`) while their own `security_type != 'ETF'` — exactly `create_task?`'s condition (`security_with_etf_type_check.rb:8-10`). Zero tasks have ever been created for any of them. Same root cause established for Missing Ticker/ISIN: `AnalystTaskRunner` is entirely event-driven per-security, with no daily full-sweep, so dormant securities with a long-standing mismatch may simply never have triggered a (re-)check. Recommendation: fix the invocation gap (or add this check to a periodic sweep), don't remove it — there's real, live, uncaught data behind it.
+
+**Source:** `WOODSE_1.DOC` ("Rarely Seen / Outdated Analyst Tasks" reference list).
+
+**Status:** Confirmed and quantified for all 5. `CLOSE_DIVIDENDS` is a genuine removal/rewire candidate; `WHACK_DATE` and `DATE_BREAKS_RULE` should be removed from the "rarely seen" label entirely; `ETF_SECURITY_TYPE_NOT_ETF` needs the invocation-gap fix, not removal; `LIMEBURNER_DISCREPANCY` is the one item that actually matches its label as-is.
