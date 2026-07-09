@@ -1,0 +1,832 @@
+<title>Woodseer Analyst Tasks - Refactor Audit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --border: #ddd8ce;
+    --text: #2b2a27;
+    --muted: #6b6558;
+    --accent: #8a5a2b;
+    --accent-soft: #f0e4d3;
+    --code-bg: #2b2a27;
+    --code-text: #f0ece2;
+    --warn-bg: #fbeee0;
+    --warn-border: #d99a4e;
+    --tag-bg: #efe9dd;
+    --dead-bg: #f7e3e0;
+    --dead-border: #c46b5a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1a17;
+    --panel: #24221e;
+    --border: #3a362e;
+    --text: #ece7db;
+    --muted: #a89f8c;
+    --accent: #d69a5c;
+    --accent-soft: #3a2e1f;
+    --code-bg: #14130f;
+    --code-text: #e9e2d2;
+    --warn-bg: #332616;
+    --warn-border: #a1712f;
+    --tag-bg: #332c22;
+    --dead-bg: #3a221e;
+    --dead-border: #a55a48;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1a17;
+      --panel: #24221e;
+      --border: #3a362e;
+      --text: #ece7db;
+      --muted: #a89f8c;
+      --accent: #d69a5c;
+      --accent-soft: #3a2e1f;
+      --code-bg: #14130f;
+      --code-text: #e9e2d2;
+      --warn-bg: #332616;
+      --warn-border: #a1712f;
+      --tag-bg: #332c22;
+      --dead-bg: #3a221e;
+      --dead-border: #a55a48;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.25);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 20px 100px;
+  }
+  header.page-head { margin-bottom: 24px; }
+  header.page-head h1 { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header.page-head .sub { color: var(--muted); font-size: 0.95rem; }
+  header.page-head .meta { color: var(--muted); font-size: 0.82rem; margin-top: 10px; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+
+  .howto { font-size: 0.88rem; color: var(--muted); }
+  .howto strong { color: var(--text); }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding: 10px 0;
+    z-index: 5;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+  .toolbar input[type=search] {
+    flex: 1 1 220px;
+    padding: 8px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  button {
+    font: inherit;
+    font-size: 0.83rem;
+    cursor: pointer;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    padding: 7px 12px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .progress-pill {
+    font-size: 0.78rem;
+    color: var(--muted);
+    padding: 6px 10px;
+    background: var(--tag-bg);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .category-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .category-nav button {
+    font-size: 0.78rem;
+    padding: 5px 10px;
+    background: var(--tag-bg);
+  }
+  .category-nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  section.category { margin-bottom: 30px; }
+  section.category h2 {
+    font-size: 1.05rem;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    border-bottom: 2px solid var(--accent-soft);
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+  }
+  section.category h2 .count { font-size: 0.78rem; color: var(--muted); font-weight: normal; }
+  section.category p.category-desc { color: var(--muted); font-size: 0.85rem; margin: -8px 0 14px; }
+
+  .rule-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .rule-card summary {
+    cursor: pointer;
+    padding: 13px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    list-style: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .rule-card summary::-webkit-details-marker { display: none; }
+  .rule-card summary .chev { color: var(--muted); font-size: 0.75rem; transition: transform 0.15s; }
+  .rule-card[open] summary .chev { transform: rotate(90deg); }
+  .rule-card summary .num { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 700; min-width: 28px; }
+  .rule-card summary .commented-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #6a9955; flex-shrink: 0; display: none;
+  }
+  .rule-card.has-comment summary .commented-dot { display: inline-block; }
+  .dead-tag {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--dead-bg);
+    color: var(--dead-border);
+    border: 1px solid var(--dead-border);
+    padding: 1px 7px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  .rule-body { padding: 4px 18px 18px 54px; }
+  .cite {
+    display: inline-block;
+    font-size: 0.76rem;
+    background: var(--tag-bg);
+    color: var(--muted);
+    padding: 2px 8px;
+    border-radius: 5px;
+    margin: 0 6px 6px 0;
+  }
+  .rule-body h4 {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 14px 0 5px;
+  }
+  .rule-body p { margin: 0 0 8px; font-size: 0.92rem; }
+  .example-block {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 10px 13px;
+    border-radius: 7px;
+    font-size: 0.83rem;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+  .refactor-note {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 7px;
+    padding: 9px 12px;
+    font-size: 0.86rem;
+  }
+  textarea.comment-box {
+    width: 100%;
+    min-height: 64px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 11px;
+    font: inherit;
+    font-size: 0.88rem;
+    background: var(--bg);
+    color: var(--text);
+  }
+  textarea.comment-box:focus { outline: 1.5px solid var(--accent); }
+  .save-hint { font-size: 0.72rem; color: var(--muted); margin-top: 4px; height: 14px; }
+
+  .eddard-notes {
+    border-left: 3px solid var(--accent);
+    padding-left: 14px;
+  }
+  .eddard-notes li { margin-bottom: 8px; font-size: 0.92rem; }
+  .eddard-notes strong { color: var(--accent); }
+
+  footer.page-foot {
+    margin-top: 40px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+
+  .hidden { display: none !important; }
+  mark { background: var(--accent-soft); color: inherit; border-radius: 3px; }
+
+  @media (max-width: 640px) {
+    .rule-body { padding-left: 20px; }
+    .rule-card summary .num { min-width: 22px; }
+  }
+</style>
+
+<header class="page-head">
+  <h1>Woodseer - Analyst Tasks Refactor Audit</h1>
+  <div class="sub">Every data-quality check in the Woodseer-app analyst-task engine, cited to file and line, with a worked example and a place for your notes.</div>
+  <div class="meta">Compiled by Eddard · source: <code>/home/jcervan/Woodseer-app</code> · 2026-07-07 · companion to <code>date-rules-report.html</code></div>
+</header>
+
+<div class="panel howto">
+  <strong>How this works:</strong> this is a static file - open it in any browser, no server needed. Your comments autosave to this browser's local storage as you type (kept separate from the date-rules report's comments). Click <strong>Export comments (JSON)</strong> before switching browsers/machines, or periodically as a backup - re-import it later with <strong>Import</strong>. Click <strong>Export report (Markdown)</strong> to get a plain-text snapshot (rules + your comments) to paste into a ticket or doc. Cards tagged <span class="dead-tag">not wired in</span> describe checks that are fully built and tested but never actually run in production - confirmed by grepping the whole app for their class names.
+</div>
+
+<div class="panel">
+  <h2 style="margin-top:0; font-size:1rem;">Eddard's top-line notes for the refactor</h2>
+  <ul class="eddard-notes">
+    <li><strong>Four checks are dead code, for two different reasons.</strong> <code>SecurityPrimaryExchangeCheck</code> is fully implemented and has a passing spec, but is never called from <code>AnalystTaskRunner</code> or anywhere else - grepping the entire <code>app</code>/<code>lib</code>/<code>spec</code> tree turns up only its own file and its own test. Separately, three ETF-constituent checks (<code>EtfConstituentsCoveredCheck</code>, <code>EtfConstituentsLastDividendCheck</code>, <code>EtfConstituentsMatchedCheck</code>) are deliberately commented out in the runner. Both are cleanup candidates, but they need different treatment: one looks like an accidental omission, the other looks like an intentional (but undocumented) disabling - worth asking the team which is which before deleting anything.</li>
+    <li><strong>There is no check registry - a new check only runs if someone remembers to add one line to a 55-line hardcoded method.</strong> <code>AnalystTaskRunner#perform_all_tasks</code> (<span class="mono">app/tasks/analyst_task_runner.rb:49-104</span>) is a flat, manually-maintained list of <code>.perform_now</code> calls. This is almost certainly how <code>SecurityPrimaryExchangeCheck</code> above ended up orphaned. A refactor should replace this with an explicit registry (even a simple array of check classes) so "written and tested" and "actually runs" can't silently diverge again.</li>
+    <li><strong>The analyst-facing "resolve" button lies about success.</strong> <code>AnalystTasksController#destroy</code> (<span class="mono">app/controllers/admin/analyst_tasks_controller.rb:22-31</span>) only calls <code>complete!</code> when <code>can_be_thumbsed_up?</code> is true, but always responds <code>{success: true}</code> regardless. For the ~35 of 58 task types that aren't dismissible, an analyst clicking "resolve" gets a false green light with no explanation of why the task is still there. This is a real, narrowly-scoped bug independent of any larger refactor - worth fixing on its own.</li>
+    <li><strong>Two independent checks police "dividends too close together" and can disagree.</strong> <code>CloseDividendsCheck</code> and <code>QuarterliesLessThanTwoMonthsCheck</code> overlap for quarterly dividends but use different formulas (a raw day-count cutoff vs. a rounded month conversion) and raise different task types - a 40-day gap trips one but not the other (see both cards for the worked example). Worth consolidating into one rule with one threshold.</li>
+    <li><strong>Outstanding task IDs are not stable across runs.</strong> Every check run deletes and recreates its own outstanding tasks from scratch (<span class="mono">app/tasks/abstract_task.rb:9</span>) rather than updating existing rows. Any bookmark, deep link, or external reference to a specific outstanding task's ID can silently point at a deleted row after the next scheduled run recreates the same logical task under a new ID. Processed (resolved) tasks are untouched by this, since the delete only targets <code>outstanding</code> ones.</li>
+  </ul>
+</div>
+
+<div class="toolbar">
+  <input type="search" id="search" placeholder="Search checks, files, keywords…">
+  <span class="progress-pill" id="progress">0 / 0 commented</span>
+  <button id="expand-all">Expand all</button>
+  <button id="collapse-all">Collapse all</button>
+  <button id="export-json">Export comments (JSON)</button>
+  <button id="import-json">Import comments</button>
+  <button id="export-md" class="primary">Export report (Markdown)</button>
+  <input type="file" id="import-file" accept="application/json" class="hidden">
+</div>
+
+<div class="category-nav" id="category-nav"></div>
+
+<div id="categories"></div>
+
+<footer class="page-foot">
+  Eddard | OptionMetrics Analyst - "The code never lies."<br>
+  Generated for the Woodseer refactor project. Comments live only in this browser's local storage until exported.
+</footer>
+
+<script>
+const RULES = [
+{cat:"lifecycle", title:"Task type registry & numbering gaps", cite:["app/models/analyst_task.rb:9-75"],
+  explanation:"58 task types are defined as plain integer constants (1-58) backing a single validates_inclusion_of. Two IDs are conspicuously missing: 17 is skipped entirely with no constant, and 28 exists only as a commented-out SECONDARY_LISTING_IN_PORTFOLIO.",
+  example:"AnalystTask::VALID_TASK_TYPES does not include 17 or 28.\nAnalystTask.new(task_type: 17).valid? => false, even though 17 looks like a plausible id between its neighbors.",
+  note:"Gaps like this usually mean a task type was retired. Worth checking the DB for any historical rows at task_type 17 or 28 before assuming either number is safe to reuse for a new check."},
+
+{cat:"lifecycle", title:"Priority is borrowed wholesale from the security's coverage tier", cite:["app/models/share.rb:26-34","app/tasks/abstract_task.rb:58-60"],
+  explanation:"task_priority defaults to @security.coverage_type - the same 6-value tier already used elsewhere to mean 'how important is this security to the business' (TIER1 = core US/European optionable stocks, down to TIER9 = not covered). There is no separate notion of task urgency.",
+  example:"An identical TAKEOVER event creates a priority-1 task on a TIER1 stock, but a priority-9 task on a TIER9 stock - the underlying event's actual urgency never enters the calculation.",
+  note:"Two checks (EtfConstituentsLastDividendCheck, SecurityInATier1IndexCheck) override task_priority to reference a *different* security's tier than the one being checked - worth an explicit test confirming priority always reflects the security a human actually needs to act on."},
+
+{cat:"lifecycle", title:"Outstanding tasks are deleted and recreated on every run, never updated", cite:["app/tasks/abstract_task.rb:9-11"],
+  explanation:"Every check run for a security starts by hard-deleting all of its own outstanding (unresolved) tasks for that security, then recreating from scratch based on the current state. Already-resolved (processed) tasks are untouched, since the delete is scoped to .outstanding.",
+  example:"AnalystTask.where(task_type: task_type).outstanding.for_security(id).delete_all\ncreate_tasks(id)   // recreates whatever still applies, with fresh row IDs",
+  note:"Outstanding task IDs are not stable across runs - a bookmark or external reference to a specific task can silently point at a deleted row once the next run recreates the same logical task under a new ID."},
+
+{cat:"lifecycle", title:"Two-tier dismissal model: thumbs-up-able vs. fix-the-data-only", cite:["app/models/analyst_task.rb:90-95","app/controllers/admin/analyst_tasks_controller.rb:22-31"],
+  explanation:"Only 23 of the 58 task types are listed in can_be_thumbsed_up? - only these can be manually accepted or rejected by an analyst from the admin UI. The rest can only disappear by an analyst fixing the underlying data, which then makes the next automated run's delete-and-recreate cycle naturally stop recreating them.",
+  example:"MAIDEN_DIVIDEND is dismissible - an analyst can click 'this is genuinely a first dividend, dismiss'.\nDIVIDEND_MISSING_CURRENCY is not - the only way to clear it is to actually set the currency on the dividend.",
+  note:"destroy calls complete! only when can_be_thumbsed_up? is true, but always responds {success: true} regardless (see the top-line note above) - a real, narrowly-scoped bug worth fixing independent of any larger refactor."},
+
+{cat:"lifecycle", title:"Polymorphic subject resolution with a magic-number type sniff", cite:["app/tasks/abstract_task.rb:67-91"],
+  explanation:"A task's subject can be a Dividend, a Disbursement, a Share, or - via subject_is_for_fiscal_year? - a bare Integer that 'looks like' a calendar year, detected purely by checking it's between 2000 and 3000. The class's own comment flags the fragility: 'TODO: update before the year 3000'.",
+  example:"create_task(note, 2024)  // interpreted as fiscal year 2024, not a numeric ID\ncreate_task(note, 15)    // NOT treated as a fiscal year (15 is outside 2000-3000) - falls through to subject.id, which fails since Integer has no #id",
+  note:"Any future check passing a small or large plain Integer as a genuine subject id (not a year) would either be silently misclassified as a fiscal year, or crash - there's no type-safe subject wrapper."},
+
+{cat:"lifecycle", title:"values_changed? optimization is applied inconsistently across checks", cite:["app/tasks/abstract_task.rb:106-108","app/tasks/big_dividend_amount_change_check.rb:49-54","app/tasks/valid_record_date_check.rb:19-23"],
+  explanation:"When checking a draft (in-progress, unpublished) dividend series, several checks skip re-flagging a dividend unless its values_changed flag is set - avoiding re-surfacing tasks for rows the analyst hasn't touched this edit session. But the flag is folded in at two different levels depending on the check.",
+  example:"BigDividendAmountChangeCheck folds it into a security-level skip_security? short-circuit (all-or-nothing per security).\nValidRecordDateCheck folds it into its per-dividend include_dividend? filter (checks only the changed rows, security-wide).",
+  note:"A security with one changed dividend and nine unchanged ones gets fully re-checked by the first style and only partially re-checked by the second - worth confirming this difference is a deliberate per-check decision rather than accidental drift."},
+
+{cat:"lifecycle", title:"AnalystTaskRunner: a hardcoded checklist, three dead checks, and one orphan", cite:["app/tasks/analyst_task_runner.rb:49-104"],
+  explanation:"perform_all_tasks runs 49 check classes via a manually-maintained, hardcoded method body, plus DateRulesCheck separately. Three ETF-constituent checks are left in the file but commented out. SecurityPrimaryExchangeCheck (task_type 31) is fully implemented and spec-tested but never appears in this list or anywhere else in the app.",
+  example:"grep -rn \"SecurityPrimaryExchangeCheck\" app lib spec\n=> only matches its own file and its own spec - AnalystTask::INVALID_SECURITY_PRIMARY_EXCHANGE can never be created in production.",
+  note:"There is no registry or auto-discovery - a new check class must be manually added to this one method to ever run. That's almost certainly how SecurityPrimaryExchangeCheck went live, tested, and unused all at once."},
+
+{cat:"lifecycle", title:"The 'continuous lap' self-perpetuating background sweep", cite:["app/tasks/analyst_task_runner.rb:23-28"],
+  explanation:"When run with queue_next_when_done: true, the runner enqueues itself (after a 10-second wait) for the next covered security by ID as soon as it finishes the current one, wrapping back to the first covered security once it reaches the end of the table - an unbounded, perpetually self-re-queuing job.",
+  example:"def queue_next_runner\n  next_security = Share.covered.where('id>?', @security_id).order(:id).first\n  log_message(\"Completed a lap of all covered securities\") if next_security.nil?\n  next_security ||= Share.covered.order(:id).first\n  AnalystTaskRunner.set(wait: 10.seconds).perform_later(next_security.id, :slow, true)\nend",
+  note:"No visible circuit breaker (feature flag, max-lap counter, etc.) - the existence of lib/tasks/clear_job_queue.rb suggests this loop has needed to be killed manually via the job queue before, rather than ever stopping itself."},
+
+{cat:"lifecycle", title:"A second, narrower daily runner overlaps with the continuous sweep", cite:["app/tasks/daily_analyst_task_runner.rb"],
+  explanation:"Separate from the per-security continuous lap above, a daily job runs only PassedEstimateCheck and MissingForecastCheck against covered securities with at least one forecast, plus SecurityInATier1IndexCheck against NOT-covered securities in a level-1 market index.",
+  example:"DailyAnalystTaskRunner#covered_securities selects Share.covered.joins(:last_dividend).where(forecast_count > 0)\nDailyAnalystTaskRunner#perform_checks queues only 2 of the 49+ checks the continuous runner already covers for the same securities.",
+  note:"Two independent, overlapping scheduling mechanisms exist for triggering the same underlying check classes with different security-selection criteria - worth confirming both are still needed, since the continuous lap already covers every check for every security eventually."},
+
+{cat:"lifecycle", title:"Daily task-count snapshot has 4 permanently-dead priority columns", cite:["app/tasks/task_count_recorder.rb","app/models/analyst_task_count.rb"],
+  explanation:"Once a day, TaskCountRecorder writes a row with outstanding-task counts broken out into columns priority1 through priority10 - but only 6 coverage tiers (1,2,3,4,5,9) actually exist as valid AnalystTask priorities.",
+  example:"Share::COVERAGE_TYPES = [1, 2, 3, 4, 5, 9]\n=> AnalystTaskCount#priority6, #priority7, #priority8, and #priority10 will always be recorded as 0, forever.",
+  note:"A schema with 4 columns that can structurally never hold a non-zero value - low-severity, but a quick, safe cleanup during any migration touching this table."},
+
+{cat:"currency-amount", title:"DIVIDEND_MISSING_CURRENCY", cite:["app/tasks/dividend_missing_currency_check.rb"],
+  explanation:"Flags any extant dividend that has a non-nil amount but a blank currency_code.",
+  example:"Dividend(amount: 50, currency_code: nil).extant? == true => flagged\nDividend(amount: nil, currency_code: nil) => NOT flagged (no amount to have a currency for)",
+  note:"A dividend with both amount and currency blank passes through unflagged by this check - it's only caught (if at all) by unrelated checks like WhackDatesCheck, which doesn't look at currency."},
+
+{cat:"currency-amount", title:"DISBURSEMENT_MISSING_CURRENCY", cite:["app/tasks/disbursement_missing_currency_check.rb"],
+  explanation:"The same missing-currency pattern one level down: a Disbursement (the actual cash-movement record under a dividend) with an amount but no currency_code.",
+  example:"disbursement.amount = 12.5, disbursement.currency_code = nil => flagged, noting which dividend/ex-date it belongs to.",
+  note:"Structurally identical logic to DIVIDEND_MISSING_CURRENCY, duplicated rather than shared - a small consolidation candidate (e.g. a shared concern/module for 'amount present, currency blank')."},
+
+{cat:"currency-amount", title:"DISBURSEMENT_AMOUNT_MISMATCH", cite:["app/tasks/disbursement_amount_match_check.rb"],
+  explanation:"When a cash-type disbursement shares its currency with the parent dividend, its amount must equal the dividend's amount exactly - any difference is flagged.",
+  example:"dividend.amount = 100, dividend.currency_code = 'USD'\ndisbursement.amount = 95, disbursement.currency_code = 'USD', type = CASH => flagged (95 != 100)",
+  note:"Only compares disbursements sharing the dividend's currency - a disbursement in a different currency is silently exempt from this check entirely, even if the FX-converted amounts would also disagree."},
+
+{cat:"currency-amount", title:"DIVIDEND_CURRENCY_MISMATCH", cite:["app/tasks/dividend_currency_match_check.rb"],
+  explanation:"A dividend's currency_code must match the security's own declaration_currency - any dividend with a non-nil amount priced in a different currency is flagged, even if that's legitimate (e.g. a foreign-currency special dividend).",
+  example:"security.declaration_currency = 'GBP', dividend.currency_code = 'USD', dividend.amount = 50 => flagged.",
+  note:"No carve-out for flag types where a different currency is expected and normal (special/capital-gain dividends often come in a different currency) - worth checking false-positive rate against DIVIDEND_CURRENCY_MISMATCH's dismissal history."},
+
+{cat:"currency-amount", title:"INVALID_PID_AMOUNT", cite:["app/tasks/pid_amount_check.rb"],
+  explanation:"A UK PID (Property Income Distribution - the tax-designated portion of a REIT payout) amount can never exceed either its own disbursement's total amount or the parent dividend's amount.",
+  example:"disbursement.amount = 80, disbursement.pid_amount = 90 => flagged (90 > 80).\ndividend.amount = nil => also flagged, treating a missing dividend amount as automatically invalid for comparison.",
+  note:"Treating dividend.amount.nil? as an automatic flag condition (rather than skipping the check) means a dividend that's simply missing its amount for an unrelated reason gets bundled into 'PID amount' tasks, muddying what the task note actually means."},
+
+{cat:"currency-amount", title:"SECURITY_MISSING_CURRENCY", cite:["app/tasks/security_declaration_currency_check.rb"],
+  explanation:"Flags a security whose own declaration_currency field is blank - a prerequisite gap that would make DIVIDEND_CURRENCY_MISMATCH unable to compare anything for that security at all.",
+  example:"security.declaration_currency.blank? == true => flagged, with no dividend-level detail (the whole security is the subject).",
+  note:"None of the other currency checks reference this one, or note in their output that a mismatch might really be a missing-security-currency problem in disguise - an analyst resolving DIVIDEND_CURRENCY_MISMATCH tasks might not realize the root cause is this separate, unrelated-looking task type."},
+
+{cat:"pattern-anomaly", title:"BIG_DIVIDEND_AMOUNT_CHANGE", cite:["app/tasks/big_dividend_amount_change_check.rb"],
+  explanation:"Compares each recent (within 2 years) standard dividend to the matching dividend exactly one fiscal year earlier (same currency, position, frequency, special/non-special type) and flags if the amount more than doubled or less than halved. Skipped for Brazilian exchanges and ETFs.",
+  example:"Prior year same-position dividend = 10, this year's = 25\n2 * 10 = 20 < 25 => flagged.\nThis year's = 18: 2*10=20, not < 18, and 2*18=36 not < 10 => NOT flagged.",
+  note:"The 'matching prior dividend' is whichever one Ruby's unordered Array#select returns first that satisfies every condition - if two prior-year dividends both qualify (e.g. a restated duplicate), which one gets compared against is not deterministic by any meaningful ordering."},
+
+{cat:"pattern-anomaly", title:"DIVIDEND_FREQUENCY_CHANGE", cite:["app/tasks/dividend_frequency_change_check.rb"],
+  explanation:"Walks standard (final/interim) dividends from the last 2 years in whatever order the dividends association returns them, flagging whenever consecutive dividends have different frequency values (e.g. quarterly switching to annual). Skipped for Brazilian exchanges.",
+  example:"Sequence: Quarterly, Quarterly, Quarterly, Annual => flagged at the Quarterly-to-Annual transition.",
+  note:"Iterates in default association order with no explicit .order(:ex_div_date) - contrast with DividendsWithInconsistentPositionCheck below, which does sort explicitly. If the underlying default scope ever changes, 'previous' silently stops meaning 'chronologically previous'."},
+
+{cat:"pattern-anomaly", title:"CLOSE_DIVIDENDS", cite:["app/tasks/close_dividends_check.rb"],
+  explanation:"Flags two same-frequency, same-flag standard dividends (ex-dates on/after 2017-01-01) whose ex-dates are suspiciously close, using a different hardcoded day-gap threshold per frequency: annual < 186 days, biannual < 90, triannual < 120, quarterly < 30, monthly < 5.",
+  example:"Two quarterly dividends 25 days apart => flagged (25 < 30).\nTwo quarterly dividends 32 days apart => NOT flagged.",
+  note:"See QUARTERLIES_LESS_THAN_TWO_MONTHS below - a second, independently-formulated check covers the same quarterly case and can disagree with this one at the boundary."},
+
+{cat:"pattern-anomaly", title:"QUARTERLIES_LESS_THAN_TWO_MONTHS", cite:["app/tasks/quarterlies_less_than_two_months_check.rb"],
+  explanation:"A quarterly-only sibling of CLOSE_DIVIDENDS that instead converts the day gap to months (days / 365 * 12, rounded) and flags if that's less than 2 - a completely different formula for a very similar case.",
+  example:"Two quarterly dividends 40 days apart:\nCLOSE_DIVIDENDS: 40 < 30? No => NOT flagged.\nQUARTERLIES_LESS_THAN_TWO_MONTHS: round(40/365*12) = round(1.32) = 1, 1 < 2 => flagged.",
+  note:"Two independently-maintained checks, two different task types, two different formulas, one overlapping purpose - the 40-day example shows they can genuinely disagree. A strong consolidation candidate for the refactor."},
+
+{cat:"pattern-anomaly", title:"DUPLICATE_DIVIDEND", cite:["app/tasks/duplicate_dividend_check.rb"],
+  explanation:"Flags a standard dividend if a later-ID'd standard dividend exists within 11 days of its ex-date sharing either the same flag OR the same amount (either condition alone is sufficient).",
+  example:"Two dividends 8 days apart, same amount (50), different flags (one Interim, one Special) => flagged - amount match alone is enough, flag mismatch doesn't save it.",
+  note:"Matching on amount alone means two genuinely unrelated dividends 8 days apart that happen to be the same cents-value (e.g. a regular payout coinciding with an unrelated special of equal size) get flagged as looking like duplicates."},
+
+{cat:"pattern-anomaly", title:"INCONSISTENT_POSITION", cite:["app/tasks/dividends_with_inconsistent_position_check.rb"],
+  explanation:"A dividend's position field must not exceed what its frequency structurally allows: monthly ≤ 12, bimonthly ≤ 6, quarterly ≤ 4, biannual ≤ 2, triannual ≤ 3, annual ≤ 1.",
+  example:"frequency: Quarterly, position: 5 => flagged (5 > 4).\nfrequency: Quarterly, position: 4 => NOT flagged.",
+  note:"The file's own header comment ('Check dividends where the amount is more than double or less than half of the previous dividend') is copy-pasted from BigDividendAmountChangeCheck and describes a completely different check - a stale/wrong comment worth fixing since it actively misleads anyone skimming the file."},
+
+{cat:"pattern-anomaly", title:"MANUAL_ESTIMATE_FOLLOWS_RECENT_RATIO", cite:["app/tasks/ratio_with_manual_estimates_check.rb"],
+  explanation:"If a share-ratio event (e.g. a stock split or consolidation) with a multiplier outside 0.8-1.2 occurred between the last declared dividend and the most recent analyst-sourced forecast, flags that forecast - a split/consolidation in between likely means the estimate wasn't adjusted for it.",
+  example:"Last declared ex-date: 2024-01-01. Latest analyst forecast ex-date: 2024-07-01.\nA 2-for-1 split (inverse_multiplier = 0.5) effective 2024-04-01 falls in between => flagged (0.5 < 0.8).",
+  note:"The 0.8-1.2 band is a bare literal with no named constant - a ratio of exactly 0.8 or 1.2 is NOT flagged (strict inequality), a boundary worth an explicit test."},
+
+{cat:"pattern-anomaly", title:"YIELD_TOO_HIGH", cite:["app/tasks/high_yield_check.rb"],
+  explanation:"Sums a security's standard dividends per fiscal year (FX-converted to price currency), divides by latest share price, and flags any year at or above 30% - lowered to 20% if that year contains any still-estimated (unconfirmed) dividend. Only evaluated from fiscal year 2020 onward.",
+  example:"Total dividends for 2024 = $25, latest price = $100 => 25% yield.\nIf 2024 contains an estimate: 25 >= 20 => flagged.\nIf every 2024 dividend is confirmed-declared: 25 >= 30 is false => NOT flagged.",
+  note:"Depends entirely on @security.latest_price being current and correctly FX-converted, with no separate staleness check tying the two together - a stale or wrong price silently produces a wrong (and potentially false-positive or false-negative) yield."},
+
+{cat:"pattern-anomaly", title:"MAIDEN_DIVIDEND", cite:["app/tasks/maiden_dividend_check.rb"],
+  explanation:"Flags a security with exactly one dividend on record, ex-date within the last 30 days, sourced from an external feed (EDI or Limeburner) - i.e. a brand-new dividend-payer just detected automatically, surfaced for an analyst to confirm.",
+  example:"dividends.length == 1, ex_div_date = 12 days ago, source = EDI => flagged.\ndividends.length == 2 (even if the second is very recent) => NOT flagged - this check only ever fires on a security's very first dividend.",
+  note:"'Length == 1' means this can only ever fire once, on the very first dividend - if that first dividend is later corrected/reloaded (still count 1), it won't re-fire; but the AbstractTask delete-and-recreate cycle means this is at least idempotent, not a source of duplicate tasks."},
+
+{cat:"date-validity", title:"INVALID_ASIAN_RECORD_DATE", cite:["app/tasks/asian_record_date_check.rb"],
+  explanation:"For Japan-listed securities only, a non-monthly standard dividend's record date is expected to fall exactly on the last calendar day of its month - any other record date is flagged.",
+  example:"Japan-listed, quarterly dividend, record_date = 2024-03-28 (month has 31 days) => flagged.\nrecord_date = 2024-03-31 => NOT flagged.",
+  note:"Monthly-frequency dividends are explicitly excluded (d.frequency != Dividend::MONTHLY) with no comment explaining why monthly Japanese dividends are exempt from the same month-end expectation."},
+
+{cat:"date-validity", title:"INVALID_JAPANESE_EX_DATE", cite:["app/tasks/japanese_ex_date_check.rb"],
+  explanation:"Also Japan-only (excluding ETFs): expects the ex-date to be exactly one business day before month-end (derived via the same settlement-period logic used elsewhere), flagging mismatches only within a -7/+8 day window around the expected date, and only for dates after 2020-01-01.",
+  example:"Expected ex-date (1 business day before month-end): 2024-03-28. Actual: 2024-03-27 => within the -7/+8 window and != expected => flagged.\nActual: 2024-03-15 (13 days off) => outside the window => NOT flagged, even though it's clearly wrong.",
+  note:"The ±7/8-day window means a wildly wrong ex-date (more than a week off) silently escapes this specific check - presumably relying on WHACK_DATE or other checks to catch more extreme errors, but that reliance isn't documented anywhere."},
+
+{cat:"date-validity", title:"EX_DATE_NOT_A_TRADING_DAY", cite:["app/tasks/ex_date_trading_day_check.rb"],
+  explanation:"Standard dividends' ex-dates (post-2017-01-01) must fall on an actual business day - but the check only runs at all for a hardcoded allowlist of individual countries (South Africa, NZ, Australia, Singapore, India, China, Korea, Japan) or whole regions (Europe, North America, Central/South America).",
+  example:"A UK security (Europe region, in REGIONS) with a Saturday ex-date => flagged.\nA security on an exchange in a country/region NOT on either list => never checked at all, regardless of how wrong its ex-date is.",
+  note:"Individually-listed countries (Japan, Korea, etc.) sit alongside whole regions with no documented rationale for why some countries needed individual listing instead of being covered by a broader region - e.g. no 'Asia' region exists even though Japan/Korea/China/Singapore/India are all listed one by one."},
+
+{cat:"date-validity", title:"INVALID_RECORD_DATE", cite:["app/tasks/valid_record_date_check.rb"],
+  explanation:"A standard dividend with an amount (post-2014-12-31) must have a record date, and it must fall within 7 days of the ex-date in either direction. A null record date is always flagged; one more than 7 days from the ex-date is flagged regardless of which direction.",
+  example:"record_date is null => flagged ('record date is null').\nex_div_date = 2024-01-01, record_date = 2024-01-15 (14 days later) => flagged (14 > 7).\nrecord_date = 2024-01-05 (4 days later) => NOT flagged.",
+  note:"7 days is a single symmetric threshold applied worldwide, even though the date-rules engine (see the companion date-rules report) already models per-exchange settlement periods that can legitimately be longer or shorter than 7 days for specific markets."},
+
+{cat:"date-validity", title:"VALID_PAY_DATE (detects an *invalid* pay date)", cite:["app/tasks/valid_pay_date_check.rb"],
+  explanation:"Pay date must come after record date and no more than 120 days later. China-listed securities get a slightly looser rule (pay date equal to record date is fine, only strictly before is flagged); everyone else must have pay date strictly after record date.",
+  example:"record_date = 2024-01-01, pay_date = 2024-01-01, non-Chinese exchange => flagged (distance = 0, and non-China requires > 0).\nSame dates on a Chinese exchange => NOT flagged (China allows distance >= 0).",
+  note:"The AnalystTask constant is literally named VALID_PAY_DATE, not INVALID_PAY_DATE, even though every other date check in this system is named for the problem it detects. AnalystTask.where(task_type: AnalystTask::VALID_PAY_DATE) actually returns dividends with BAD pay dates - a naming trap for anyone querying this table directly."},
+
+{cat:"date-validity", title:"INVALID_SETTLEMENT_PERIOD", cite:["app/tasks/valid_settlement_period_check.rb"],
+  explanation:"Cross-checks each dividend's actual ex-date against what the exchange's on-file settlement period (T+N) says it should be, given the record date - flags any mismatch. Uses its own raw SQL NOT IN (SELECT ... FROM analyst_tasks ...) subquery to exclude dividends that already have an open task of this type, instead of the shared per-security delete-and-recreate cycle every other check relies on.",
+  example:"record_date = 2024-01-10, exchange settlement period = T+1 => expected ex-date = 2024-01-09.\nActual ex-date = 2024-01-08 => mismatch => flagged.",
+  note:"This is the only check with its own bespoke deduplication query running in parallel to AbstractTask#task_exists? - a second, differently-implemented mechanism for the same underlying purpose (don't recreate a task that already exists), which is a subtle place for future dedup bugs to hide."},
+
+{cat:"date-validity", title:"INVALID_FTSE_MIB_EX_DATE", cite:["app/tasks/valid_ftse_mib_date_check.rb"],
+  explanation:"For FTSE MIB 40 constituents only, forecast dividends' ex-dates are checked against the same hardcoded '3rd Friday of the month, plus 17 days' formula documented in the date-rules report's hardcoded-override rules - any mismatch is flagged.",
+  example:"DateCalculator.ex_date_for_ftse_mib(2024, 5) computes the expected date for May 2024; any forecast dividend with a different ex-date in that month is flagged with the expected day spelled out in the note.",
+  note:"This QA check and the forecasting engine's FTSE MIB hardcoded rule (date-rules report) both encode the exact same formula independently - a change to one without the other would make this check start flagging every correctly-forecast FTSE MIB dividend as wrong."},
+
+{cat:"date-validity", title:"WHACK_DATE", cite:["app/tasks/whack_dates_check.rb"],
+  explanation:"A blunt sanity check applied to every date field on every extant dividend (ex, record, pay, year-end, period-end, declaration) plus the bare fiscal_year integer: anything before 2000-01-01 or more than 6 years in the future is flagged as simply implausible.",
+  example:"declaration_date = 1899-12-31 (a classic 'null date' sentinel value from an upstream feed) => flagged, since 1899 < 2000.",
+  note:"A single shared min/max window (2000-01-01 to today+6y) applied to six different semantically-distinct date fields at once - a genuinely ancient but real fiscal_year (pre-2000 historical backfill data, if ever added) would trip this same blunt check."},
+
+{cat:"date-validity", title:"DATE_BREAKS_RULE (bridges to the date-rules forecasting engine)", cite:["app/tasks/date_rules_check.rb"],
+  explanation:"For each estimated dividend, builds the security's inferred DateRule rulesets (the same engine documented in the companion date-rules report) and flags if a ruleset with confidence > 49 predicts a different date than the dividend's actual forecast - unless that date is itself coming from a trusted DateSchedule override.",
+  example:"Ex-date ruleset: '3rd Friday of the month', confidence 80. Current estimate's ex-date falls on a Wednesday => flagged: \"Expected 2nd Quarterly 2024 Ex-Div Date to be 15 Mar 2024 (the 3rd Friday of March)\".",
+  note:"Duplicates the exact confidence threshold (> 49, i.e. >= 50) from RuleSet#sufficient_confidence? in the forecasting engine as a separate hardcoded literal here, rather than calling that method directly - the two thresholds could silently drift apart if one is tuned without the other."},
+
+{cat:"date-validity", title:"DIVIDEND_DISTRIBUTION_SCHEDULE_MISMATCH", cite:["app/tasks/dividend_distribution_schedule_match_check.rb"],
+  explanation:"For securities with a known future distribution schedule (ETF issuer-published calendars, fiscal years after 2020), cross-checks the matching dividend's ex/record/pay dates against the schedule's dates individually - flags any of the three that differ, with pay date only checked when the schedule has one or the dividend already has a non-zero amount.",
+  example:"Schedule says ex_div_date = 2024-06-01 for this ETF's Q2 distribution; the actual dividend record has ex_div_date = 2024-06-03 => flagged specifically on the ex-date mismatch (record and pay dates checked independently).",
+  note:"Three independent create_task_for_date calls per dividend mean a dividend with all three dates wrong generates three separate tasks rather than one consolidated task - compare with LimeburnerDiscrepanciesCheck, which deliberately joins multiple field mismatches into a single task note."},
+
+{cat:"fiscal-year", title:"INVALID_FISCAL_YEAR", cite:["app/tasks/valid_fiscal_year_check.rb"],
+  explanation:"Dividend fiscal years must be non-decreasing in ex-date order (post-2017-01-01): flags any dividend whose fiscal year is lower than that of an earlier-ex-dated dividend with a higher fiscal year - catching fiscal years that run backwards relative to real chronology.",
+  example:"Dividend A: ex-date 2023-01-01, fiscal_year 2024. Dividend B: ex-date 2023-06-01, fiscal_year 2023 => B is flagged, since an earlier dividend (A) already has a higher fiscal year.",
+  note:"O(n²) comparison (every dividend checked against every other dividend via earlier_dividend?) - fine at typical per-security dividend counts, but worth knowing if this check is ever run against a security with an unusually long, dense history."},
+
+{cat:"fiscal-year", title:"INCOMPLETE_FISCAL_YEAR", cite:["app/tasks/incomplete_fiscal_year_check.rb"],
+  explanation:"For multi-payment frequencies (biannual, triannual, quarterly, bimonthly, monthly), checks that the position immediately before and after each dividend in the same fiscal year also exists - flags a 'hole' in the expected sequence (e.g. Q1 and Q3 exist but Q2 doesn't), skipped for securities flagged as not expecting forecasts.",
+  example:"Fiscal year 2024, quarterly: positions 1, 3, 4 exist but position 2 doesn't => flagged 'Missing 2nd quarterly 2024 dividend', anchored on position 1 (looking ahead) and position 3 (looking back, since position 2 before it is also missing).",
+  note:"Both create_task_for_next_dividend? and create_task_for_prev_dividend? can fire for the same gap from two different adjacent dividends, potentially describing the same missing slot twice from two different anchor points - worth checking task_exists? dedup actually catches this or if it's two distinct AnalystTask rows for one real gap."},
+
+{cat:"fiscal-year", title:"MISSING_FISCAL_YEAR_FROM_SEQUENCE", cite:["app/tasks/missing_fiscal_year_from_sequence_check.rb"],
+  explanation:"A coarser, whole-year version of the check above: flags if an entire fiscal year is missing from the security's dividend history while both the year before and the year after are present - checked only for the current year and next year.",
+  example:"Standard dividends exist for fiscal years 2023 and 2025, but none for 2024 => 2024 is flagged as missing, provided 2024 is 'this year' or 'next year' relative to when the check runs.",
+  note:"Only ever checks 2 specific years (current + next) rather than scanning the whole history for any such gap - a gap in, say, 2021 (with 2020 and 2022 present) would never be caught by this check once the calendar has moved past checking 2021 as 'this year' or 'next year'."},
+
+{cat:"fiscal-year", title:"FINAL_DIVIDEND_NOT_LAST", cite:["app/tasks/final_dividend_is_last_check.rb"],
+  explanation:"The dividend flagged 'Final' for a fiscal year must be the last (by ex-date) standard, non-irregular dividend in that year - flags if any other standard dividend in the same fiscal year has a later ex-date.",
+  example:"Fiscal year 2024: Final dividend ex-date 2024-06-01; an Interim dividend in the same fiscal year with ex-date 2024-09-01 exists => the Final dividend is flagged, since it's not actually last.",
+  note:"Flags the Final dividend itself, not the later Interim that came after it - an analyst investigating the flagged (Final) dividend has to independently notice which other dividend is the actual problem."},
+
+{cat:"fiscal-year", title:"YEAR_END_CHANGE", cite:["app/tasks/year_end_change_check.rb"],
+  explanation:"Compares the fiscal year-end date (date5) between the two most recent dividend-type corporate actions (within the last 5 vs. 365 days respectively) - flags if the month changed, or if the day changed without both dates being 'end of February' (a leap-year-aware exemption).",
+  example:"Year-end moves from Dec 31 to Mar 31 => flagged (month changed).\nYear-end Feb 28, 2023 vs. Feb 29, 2024 => NOT flagged - both are 'end of February', so the exemption treats this as unchanged despite the differing day number.",
+  note:"The leap-year exemption only covers the specific end-of-February case - a year-end that moves from, say, the 30th to the 31st of the same month (a real but much smaller change) would be flagged just as loudly as a move to a completely different month, with no severity distinction in the task itself."},
+
+{cat:"forecast-lifecycle", title:"MISSING_FORECAST", cite:["app/tasks/missing_forecast_check.rb"],
+  explanation:"Every actively-covered security is expected to have estimated dividends stretching at least 2 years into the future (4 years for members of specific 'long-forecast' indices) - flags if the last declared dividend is recent (within 2 years) but forecasts don't reach that horizon. A separate variant runs for draft series under edit.",
+  example:"Security not in a 4-year-forecast index, last declared dividend 6 months ago, last forecast dividend's ex-date is only 400 days out (needs to reach 730) => flagged: \"Expects 2 year forecasts to at least [date]\".",
+  note:"The 730/1460-day thresholds and the 'which indices get 4 years instead of 2' list are all separate hardcoded constants with no single source of truth documented near any of them."},
+
+{cat:"forecast-lifecycle", title:"PASSED_ESTIMATE", cite:["app/tasks/passed_estimate_check.rb"],
+  explanation:"An estimated (not yet declared) dividend should have turned into a real declaration by some point after its expected date - the grace period differs by security category: depositary receipts (8 days before pay date, or 6 days past ex-date with no pay date), ETFs (flagged as soon as ex-date or declaration date passes), Japan/Korea (122 days past ex-date), everyone else (7 days past declaration date OR within 2 days of ex-date).",
+  example:"Standard (non-DR, non-ETF, non-JP/KR) security, estimate's ex-date is tomorrow => flagged (within 2 days of ex-date), even though the date itself hasn't passed yet.\nSame estimate for a JP/KR security => NOT flagged until 122 days past ex-date.",
+  note:"5 independently-tuned grace windows (8, 6, 0/1, 122, 7/2 days) for 5 security categories, with no shared constant and no documented rationale for why JP/KR specifically needs a two-month-plus window versus everyone else's single-digit-day windows."},
+
+{cat:"forecast-lifecycle", title:"DELISTED_SECURITY_WITH_FORECASTS", cite:["app/tasks/delisted_security_forecast_check.rb"],
+  explanation:"A security whose primary listing is marked delisted should have no remaining estimated (future) dividends on record - flags if any still exist.",
+  example:"security.primary_listing.delisted? == true, and one dividend with status ESTIMATE still exists => flagged.",
+  note:"Simple and narrow - one of the shortest checks in the system, with no edge cases beyond the two conditions it tests."},
+
+{cat:"forecast-lifecycle", title:"DECLARATION_AFTER_FORECAST", cite:["app/tasks/declaration_follows_forecast_check.rb"],
+  explanation:"The most recent actually-declared dividend's ex-date should not be on/after the earliest still-outstanding forecast's ex-date - that would mean a forecast is now stale/superseded by a real declaration. Capital-gain/special/return-of-capital dividends get a looser rule: only flagged if the declaration lands more than 60 days past the forecast.",
+  example:"Latest declared dividend ex-date: 2024-06-01. Earliest remaining forecast ex-date: 2024-05-15 => flagged, since the declaration (2024-06-01) is on/after the stale forecast's date (2024-05-15).",
+  note:"IGNORED_FLAGS (capital gain/special/return-of-capital) get a 60-day grace period baked in as a bare literal, separate from every other magic-number grace period scattered across this file of checks - another candidate for a shared, named constants module."},
+
+{cat:"forecast-lifecycle", title:"DECLARATION_WITH_ANALYST_FORECAST", cite:["app/tasks/declaration_with_analyst_forecast_check.rb"],
+  explanation:"Compares the current draft series against the previous published series: if an analyst-sourced forecast existed previously and an external (EDI/Limeburner) declaration now exists in the draft for the same slot, flags it - UNLESS the declared amount/currency/ex-date/record-date all exactly match what the analyst had already forecast, in which case the analyst's estimate was simply correct.",
+  example:"Previous series: analyst forecast amount=50, currency=GBP, ex-date=2024-06-01, record-date=2024-06-03.\nNew declaration: amount=50, currency=GBP, ex-date=2024-06-01, record-date=2024-06-03 => all four match => NOT flagged.\nNew declaration with amount=52 => flagged.",
+  note:"Requires an exact match on all four fields simultaneously - an analyst who correctly forecast the amount and dates but had the wrong currency code (e.g. a data-entry typo on an otherwise perfect forecast) still gets flagged as if the whole forecast were wrong."},
+
+{cat:"forecast-lifecycle", title:"STALE_ANALYST_FLAG", cite:["app/tasks/stale_analyst_flag_check.rb"],
+  explanation:"If an analyst set a special flag (e.g. 'no dividends', 'delisted') on a security, and a real dividend has since been declared in a series version created after that flag was set, flags the security so the now-outdated flag can be reviewed - with a carve-out for a placeholder 'nil dividend' disbursement under the NO_DIVIDENDS flag, which doesn't count as a real declaration.",
+  example:"analyst_flag set 2024-01-01. A new series (v3, created 2024-03-01) contains a declared dividend sourced from EDI => flagged, since the flag predates this series.",
+  note:"Relies on flag_set_at being reliably updated any time analyst_flag changes - if any code path sets analyst_flag directly without also touching flag_set_at, this check would silently never fire for that flag change."},
+
+{cat:"forecast-lifecycle", title:"SECURITY_FLAG_SET_IMPROPERLY (class name doesn't match: NoForecastsFlagCheck)", cite:["app/tasks/no_forecasts_flag_check.rb"],
+  explanation:"Cross-checks an analyst flag meant to signal 'don't forecast this security' (dividend cut, no dividends, winding up, or other 'forecast not required' flags) against whether forecasts actually still exist - flags the contradiction. The 'winding up' flag gets a special rule: only flagged if forecasts extend more than a year out, since a winding-up company might legitimately still have near-term payments in motion.",
+  example:"analyst_flag = NO_DIVIDENDS, and one forecast dividend with a non-nil amount still exists => flagged.\nanalyst_flag = WINDING_UP, latest forecast ex-date is 200 days out => NOT flagged (not yet past the 1-year threshold).",
+  note:"The class is named NoForecastsFlagCheck but produces AnalystTask::SECURITY_FLAG_SET_IMPROPERLY, a task type whose name doesn't obviously map back to the class - an engineer grepping for the task type name would miss this file unless they already know the mapping."},
+
+{cat:"forecast-lifecycle", title:"NO_DIVIDENDS_FLAG_SET_IMPROPERLY", cite:["app/tasks/no_dividends_flag_check.rb"],
+  explanation:"The inverse of the check above for one specific flag: if 'No Dividends' is set on a security but a dividend record with a real (non-nil) amount exists anyway, flags the direct contradiction.",
+  example:"analyst_flag = NO_DIVIDENDS, and a dividend with amount = 25 exists (any status) => flagged.",
+  note:"Narrower and simpler than SECURITY_FLAG_SET_IMPROPERLY above but overlapping in spirit - both checks exist because the 'no dividends' flag has two different ways to be contradicted (a lingering non-nil forecast vs. an actual dividend amount), which isn't obvious without reading both files side by side."},
+
+{cat:"identity-metadata", title:"SECURITY_TYPE_NOT_SET", cite:["app/tasks/security_type_check.rb"],
+  explanation:"Flags any security with a blank security_type field - the shortest, simplest check in the entire system.",
+  example:"security.security_type.blank? == true => flagged, no further detail in the note.",
+  note:"None - a clean, minimal check with no hidden edge cases."},
+
+{cat:"identity-metadata", title:"ETF_SECURITY_TYPE_NOT_ETF", cite:["app/tasks/security_with_etf_type_check.rb"],
+  explanation:"A cross-table consistency check: flags a security that has an associated Etf record but whose own security_type field isn't set to ETF.",
+  example:"security.etf.present? == true, security.security_type == Share::EQUITY_SHARE => flagged.",
+  note:"One-directional only - it doesn't check the inverse case (security_type == ETF but no Etf record exists), which would be an equally plausible data error."},
+
+{cat:"identity-metadata", title:"MISSING_PRIMARY_LISTING", cite:["app/tasks/primary_listing_check.rb"],
+  explanation:"Flags any security with no primary listing at all - a prerequisite gap that several other checks (ticker/ISIN checks, duplicate-listing checks) implicitly depend on being resolved first.",
+  example:"security.primary_listing.nil? == true => flagged, subject is the security itself.",
+  note:"Several downstream checks (e.g. DuplicateTickerCheck) call skip_security? guards that reference @security.primary_listing.nil? individually rather than checking for this task type's existence - meaning the 'no primary listing' gap gets silently worked around in several places instead of being treated as a hard blocking precondition."},
+
+{cat:"identity-metadata", title:"INVALID_SECURITY_PRIMARY_EXCHANGE", cite:["app/tasks/security_primary_exchange_check.rb"], dead:true,
+  explanation:"Would flag a security whose primary_exchange_id doesn't correspond to the stock exchange of ANY of its own listings - a real, sensible data-integrity check, fully implemented with a 3-scenario passing spec.",
+  example:"spec/tasks/security_primary_exchange_check_spec.rb confirms the intended behavior: primary_exchange = LSE, but listings only exist on NYSE Arca / Nasdaq / Tokyo => should create a task. The spec passes.",
+  note:"Never actually runs in production - not called from AnalystTaskRunner, DailyAnalystTaskRunner, or anywhere else outside its own spec file (confirmed by grepping the whole app/lib/spec tree). Either wire it into the runner or remove it; leaving fully-tested, never-executed code in place is the most concrete 'free win' finding in this whole audit."},
+
+{cat:"identity-metadata", title:"SECURITY_FLAG_STATUS_MISMATCH", cite:["app/tasks/security_status_flag_check.rb"],
+  explanation:"If a security's analyst flag says 'Acquired' or 'Ceased Trading' but its primary listing is still marked active, flags the contradiction.",
+  example:"analyst_flag = ACQUIRED, primary_listing.active_listing? == true => flagged.",
+  note:"Only checks the ACQUIRED/CEASED_TRADING flags specifically - other flags that might also imply 'this listing should no longer be active' (e.g. delisted-adjacent statuses) aren't cross-checked by this same mechanism."},
+
+{cat:"identity-metadata", title:"DUPLICATE_PRIMARY_LISTING", cite:["app/tasks/duplicate_primary_listing_check.rb"],
+  explanation:"Flags if more than one of a security's listings shares the same stock-exchange ID as its own designated primary exchange - an ambiguous 'which one is actually primary' state.",
+  example:"security.primary_exchange_id = LSE. Security has two listings both on LSE => flagged, subject is the last of the two.",
+  note:"Picks primary_listings.last as the task subject with no criteria for why the last one (by whatever default order) is the more relevant one to point an analyst at over the other."},
+
+{cat:"identity-metadata", title:"MISSING_TICKER_AND_ISIN_CHECK", cite:["app/tasks/missing_ticker_and_isin_check.rb"],
+  explanation:"Flags any active primary listing missing a ticker and/or ISIN, naming which of the two (or both) is missing in the task note.",
+  example:"listing.ticker = nil, listing.isin = 'GB0002634946' => flagged: \"Missing ticker: [company name]\".",
+  note:"Checks every active primary listing on the security, not just the current primary_exchange listing - a security with multiple active 'primary' listings (see DUPLICATE_PRIMARY_LISTING above) could get one task per affected listing."},
+
+{cat:"identity-metadata", title:"DUPLICATE_ISIN_CHECK", cite:["app/tasks/duplicate_isin_check.rb"],
+  explanation:"Flags if another active primary listing anywhere in the system shares the same ISIN as this security's own (excluding Brazilian exchanges).",
+  example:"security A's ISIN = 'GB0002634946'. Security B, a different company, has an active primary listing with the same ISIN => both would independently flag each other when their own checks run.",
+  note:"Runs per-security, so a genuine duplicate ISIN between two companies produces two separate AnalystTask rows (one per security) rather than one shared task - double the manual review work for what is really one underlying data problem."},
+
+{cat:"identity-metadata", title:"DUPLICATE_TICKER_CHECK", cite:["app/tasks/duplicate_ticker_check.rb"],
+  explanation:"Narrower than the ISIN check: flags a duplicate ticker only among listings on exchanges in the SAME country as this security's primary exchange, since tickers can legitimately repeat across different countries.",
+  example:"Security's ticker 'ABC' on an LSE (UK) listing. Another UK-listed company also uses ticker 'ABC' => flagged.\nA US company also happens to use ticker 'ABC' => NOT flagged (different country).",
+  note:"Country-scoped rather than exchange-scoped - two different UK exchanges with the same ticker would still cross-match, which is probably intended but isn't stated explicitly anywhere in the check."},
+
+{cat:"identity-metadata", title:"MISMATCH_TICKER_AND_ISIN_CHECK", cite:["app/tasks/mismatch_ticker_and_isin_check.rb"],
+  explanation:"Compares the primary listing's ticker/ISIN against the most recent vendor corporate-action record for ticker/ISIN changes - flags a mismatch only once the change's effective date has actually passed, avoiding flagging a listing for not yet reflecting a future-dated change.",
+  example:"Corporate action records an ISIN change effective 2024-01-01 (now in the past); the listing's current ISIN still shows the old value => flagged.\nSame corporate action but effective date is next month => NOT flagged yet.",
+  note:"Two separate create_task calls (one for ISIN, one for ticker) can both fire for the same listing in one run if both are out of date - two tasks for what's likely one underlying 'this listing needs a corporate-action-driven update' situation."},
+
+{cat:"coverage-external", title:"SECURITY_IN_PORTFOLIO_NOT_COVERED", cite:["app/tasks/security_in_portfolio_covered_check.rb"],
+  explanation:"A security sitting in a paying client's portfolio but not itself marked 'covered' gets flagged - this check overrides the normal coverage gate entirely (security_is_covered_or_should_be_checked? returns true unconditionally), since the whole point is to catch securities that are specifically NOT covered.",
+  example:"security.covered? == false, and it's a member of a portfolio belonging to an organisation with organisation.paying? == true => flagged.",
+  note:"One of only two checks in the whole system (the other being LimeburnerDiscrepanciesCheck) that bypasses the shared coverage gate - worth confirming this override is still necessary rather than a workaround for some older version of the coverage logic."},
+
+{cat:"coverage-external", title:"TIER1_INDEX_CONSTITUENT_NOT_COVERED", cite:["app/tasks/security_in_a_tier1_index_check.rb"],
+  explanation:"Any security belonging to a level-1 market index that isn't already in the two least-covered tiers (5 or 9) gets a task per index membership - runs only via the separate DailyAnalystTaskRunner, not the main per-security sweep.",
+  example:"security.coverage_type = TIER5, is a constituent of 2 different level-1 indices => 2 separate tasks created, one per index, each noting a different index name.",
+  note:"task_priority is hardcoded to Share::TIER4 regardless of the security's actual coverage tier (5 or 9) - meaning every task from this check has the same fixed priority, which may or may not reflect genuine urgency across different securities."},
+
+{cat:"coverage-external", title:"ETF constituent checks - three fully-built checks, all disabled", cite:["app/tasks/etf_constituents_covered_check.rb","app/tasks/etf_constituents_last_dividend_check.rb","app/tasks/etf_constituents_matched_check.rb","app/tasks/analyst_task_runner.rb:100-102,110-113"], dead:true,
+  explanation:"Three complete, working checks - are all of an ETF's constituents covered, are all constituents matched to a real security record, do constituent forecasts extend past the ETF's own last dividend - are explicitly commented out in AnalystTaskRunner#perform_all_tasks, along with the run_for_etf_constituents caller that would otherwise trigger a cascading check of every constituent whenever an ETF itself is checked.",
+  example:"# EtfConstituentsCoveredCheck .perform_now @security_id, @for_draft_series\n# EtfConstituentsLastDividendCheck .perform_now @security_id, @for_draft_series\n# EtfConstituentsMatchedCheck .perform_now @security_id, @for_draft_series\n# run_for_etf_constituents if !@for_draft_series",
+  note:"Unlike SecurityPrimaryExchangeCheck (which looks like an accidental omission), these three are deliberately commented out together with their triggering call - almost certainly disabled intentionally at some point, but with no comment explaining why or whether it's meant to be permanent. Worth asking the team before either re-enabling or deleting."},
+
+{cat:"coverage-external", title:"TAKEOVER", cite:["app/tasks/takeover_check.rb"],
+  explanation:"Flags a security with a takeover-type corporate action recorded in the last 30 days, formatting whatever combination of close/compulsory-acquisition/unconditional dates and completion status (ongoing/complete/lapsed) happen to be populated on that specific record.",
+  example:"A takeover action with close date, target percentage, and status 'O' (ongoing) => note reads \"Takeover by Acme Corp, close date: 01 June 2024, target: 90%  (ongoing)\".",
+  note:"Only looks at actions created in the last 30 days with no separate check for whether an OLDER still-open takeover (status still 'ongoing' well past 30 days) should keep the task alive or get re-surfaced - a long-running takeover saga could go quiet in the task list well before it actually resolves."},
+
+{cat:"external-reconciliation", title:"EDI_DATA_DOES_NOT_MATCH_MANUAL", cite:["app/tasks/edi_data_does_not_match_manual_check.rb"],
+  explanation:"For dividends originally declared by an analyst but later matched to an incoming EDI (vendor) feed record, compares 7 fields (ex-date, record date, flag, frequency, amount, currency, fiscal year) one at a time via a dynamically-built method call, and stops at the FIRST mismatch found.",
+  example:"if edi_value = eval(\"comparator.different_#{column}?\")\n  return create_task(note(column, edi_value, dividend), dividend)\nend\n// only the first mismatched column (in DIVIDEND_COLUMNS order) ever gets reported",
+  note:"The eval-based dynamic dispatch is a code-injection-shaped pattern - not exploitable today since column only ever comes from the fixed internal DIVIDEND_COLUMNS constant, but a real liability if that list is ever built from anything less trusted. Separately, only surfacing the first mismatch (not all of them) means an analyst fixes one field, re-runs, and only then sees the next mismatch."},
+
+{cat:"external-reconciliation", title:"LIMEBURNER_DISCREPANCY", cite:["app/tasks/limeburner_discrepancies_check.rb"],
+  explanation:"Runs completely outside the normal AbstractTask per-security-check pattern (overrides create_tasks directly instead of check_security) to compare Limeburner (a corporate-actions data vendor) dividend records against Woodseer's own matched dividend across 6 fields (amount, currency, ex-date, record-date, pay-date, frequency), joining every discrepancy it finds into ONE combined task note rather than one task per field.",
+  example:"Limeburner amount = 55 (Woodseer has 50) AND Limeburner currency = 'EUR' (Woodseer has 'GBP') => single task note: \"Dividend 01 Jun 2024: Limeburner amount is 5500, currency is EUR\".",
+  note:"This is the only check in the entire system that calls AnalystTask.create(...) directly with its own hand-rolled field list, instead of the shared AbstractTask#create_task helper - it duplicates (and could silently drift from) the priority/object_name/dedup logic every other check gets for free, and is also the only check that consolidates multiple field mismatches into a single task rather than one task per mismatch (contrast with DIVIDEND_DISTRIBUTION_SCHEDULE_MISMATCH, which does the opposite)."}
+];
+
+const CATEGORY_META = {
+  "lifecycle":        {label: "Task Lifecycle & Runner Infrastructure", desc: "How AnalystTask itself, the priority scale, and the two runners that drive everything actually work - including the dead code hiding in that infrastructure."},
+  "currency-amount":  {label: "Currency & Amount Checks", desc: "Missing currencies and amounts that don't reconcile between a dividend and its disbursements."},
+  "pattern-anomaly":  {label: "Dividend Pattern & Anomaly Checks", desc: "Statistical/pattern-based red flags: sudden amount changes, frequency changes, suspiciously close or duplicate dividends, high yields."},
+  "date-validity":    {label: "Date-Validity QA Checks", desc: "Checks that catch bad individual dates - distinct from the forecasting 'date rules' engine documented in the companion report, though several bridge directly into it."},
+  "fiscal-year":      {label: "Fiscal Year & Sequence Checks", desc: "Is the dividend sequence for a fiscal year complete, in order, and does the 'Final' dividend actually come last."},
+  "forecast-lifecycle": {label: "Forecast Lifecycle Checks", desc: "Do forecasts exist far enough ahead, have estimates gone stale, do analyst flags and forecasts still agree with reality."},
+  "identity-metadata": {label: "Security Identity & Metadata Checks", desc: "Ticker, ISIN, listing, and exchange data-integrity checks - includes the one confirmed dead (never-invoked) check in the system."},
+  "coverage-external": {label: "Coverage & Index Membership Checks", desc: "Is a security covered when it should be, given its portfolio or index membership - includes the three checks disabled together in the runner."},
+  "external-reconciliation": {label: "External Vendor Reconciliation", desc: "Comparing Woodseer's own data against two outside sources (EDI feed, Limeburner) that can each disagree with what an analyst entered."}
+};
+
+const STORAGE_PREFIX = "woodseer-analyst-tasks-v1-";
+
+RULES.forEach((r, i) => { r.id = "rule-" + i; });
+
+function loadComment(id) {
+  try { return localStorage.getItem(STORAGE_PREFIX + id) || ""; } catch(e) { return ""; }
+}
+function saveComment(id, text) {
+  try {
+    if (text) localStorage.setItem(STORAGE_PREFIX + id, text);
+    else localStorage.removeItem(STORAGE_PREFIX + id);
+  } catch(e) {}
+}
+
+function el(tag, attrs, children) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === "class") e.className = attrs[k];
+    else if (k === "text") e.textContent = attrs[k];
+    else e.setAttribute(k, attrs[k]);
+  }
+  (children || []).forEach(c => { if (c) e.appendChild(c); });
+  return e;
+}
+
+function renderCite(cites) {
+  const wrap = el("div", {});
+  cites.forEach(c => wrap.appendChild(el("span", {class:"cite mono", text:c})));
+  return wrap;
+}
+
+function buildRuleCard(rule, index) {
+  const details = el("details", {class:"rule-card", "data-id": rule.id, "data-cat": rule.cat});
+  const summaryChildren = [
+    el("span", {class:"chev", text:"▶"}),
+    el("span", {class:"num", text:"#"+(index+1)}),
+    el("span", {class:"commented-dot"}),
+    el("span", {text: rule.title})
+  ];
+  if (rule.dead) summaryChildren.push(el("span", {class:"dead-tag", text:"Not wired in"}));
+  const summary = el("summary", {}, summaryChildren);
+  const body = el("div", {class:"rule-body"});
+  body.appendChild(renderCite(rule.cite));
+  body.appendChild(el("h4", {text:"What it does"}));
+  body.appendChild(el("p", {text: rule.explanation}));
+  body.appendChild(el("h4", {text:"Example"}));
+  body.appendChild(el("div", {class:"example-block", text: rule.example}));
+  body.appendChild(el("h4", {text:"Refactor note"}));
+  body.appendChild(el("div", {class:"refactor-note", text: rule.note}));
+  body.appendChild(el("h4", {text:"Your comment"}));
+  const textarea = el("textarea", {class:"comment-box", placeholder:"Notes for the refactor - leave blank if none…"});
+  textarea.value = loadComment(rule.id);
+  const hint = el("div", {class:"save-hint"});
+  let saveTimer;
+  textarea.addEventListener("input", () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveComment(rule.id, textarea.value);
+      hint.textContent = "Saved " + new Date().toLocaleTimeString();
+      details.classList.toggle("has-comment", !!textarea.value.trim());
+      updateProgress();
+    }, 250);
+  });
+  body.appendChild(textarea);
+  body.appendChild(hint);
+  details.appendChild(summary);
+  details.appendChild(body);
+  if (textarea.value.trim()) details.classList.add("has-comment");
+  return details;
+}
+
+function updateProgress() {
+  const total = RULES.length;
+  const commented = RULES.filter(r => loadComment(r.id).trim()).length;
+  document.getElementById("progress").textContent = commented + " / " + total + " commented";
+}
+
+function render() {
+  const container = document.getElementById("categories");
+  const nav = document.getElementById("category-nav");
+  const order = Object.keys(CATEGORY_META);
+  nav.appendChild(el("button", {class:"active", "data-cat":"all", text:"All"}));
+  order.forEach(cat => {
+    if (!RULES.some(r => r.cat === cat)) return;
+    nav.appendChild(el("button", {"data-cat":cat, text: CATEGORY_META[cat].label}));
+  });
+
+  order.forEach(cat => {
+    const rulesInCat = RULES.filter(r => r.cat === cat);
+    if (!rulesInCat.length) return;
+    const section = el("section", {class:"category", "data-cat":cat});
+    section.appendChild(el("h2", {}, [
+      document.createTextNode(CATEGORY_META[cat].label + " "),
+      el("span", {class:"count", text:"(" + rulesInCat.length + ")"})
+    ]));
+    section.appendChild(el("p", {class:"category-desc", text: CATEGORY_META[cat].desc}));
+    rulesInCat.forEach(r => {
+      const globalIndex = RULES.indexOf(r);
+      section.appendChild(buildRuleCard(r, globalIndex));
+    });
+    container.appendChild(section);
+  });
+
+  updateProgress();
+}
+
+function applyFilters() {
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const activeCat = document.querySelector(".category-nav button.active").dataset.cat;
+  document.querySelectorAll(".rule-card").forEach(card => {
+    const cat = card.dataset.cat;
+    const text = card.textContent.toLowerCase();
+    const catOk = activeCat === "all" || activeCat === cat;
+    const qOk = !q || text.includes(q);
+    card.classList.toggle("hidden", !(catOk && qOk));
+    if (qOk && q) card.open = true;
+  });
+  document.querySelectorAll("section.category").forEach(sec => {
+    const anyVisible = Array.from(sec.querySelectorAll(".rule-card")).some(c => !c.classList.contains("hidden"));
+    sec.classList.toggle("hidden", !anyVisible);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  render();
+
+  document.getElementById("search").addEventListener("input", applyFilters);
+
+  document.getElementById("category-nav").addEventListener("click", (e) => {
+    if (e.target.tagName !== "BUTTON") return;
+    document.querySelectorAll(".category-nav button").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    applyFilters();
+  });
+
+  document.getElementById("expand-all").addEventListener("click", () => {
+    document.querySelectorAll(".rule-card").forEach(d => d.open = true);
+  });
+  document.getElementById("collapse-all").addEventListener("click", () => {
+    document.querySelectorAll(".rule-card").forEach(d => d.open = false);
+  });
+
+  document.getElementById("export-json").addEventListener("click", () => {
+    const data = {};
+    RULES.forEach(r => { const c = loadComment(r.id); if (c.trim()) data[r.id] = {title: r.title, comment: c}; });
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "woodseer-analyst-tasks-comments.json";
+    a.click();
+  });
+
+  document.getElementById("import-json").addEventListener("click", () => {
+    document.getElementById("import-file").click();
+  });
+  document.getElementById("import-file").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        Object.keys(data).forEach(id => saveComment(id, data[id].comment || ""));
+        location.reload();
+      } catch (err) {
+        alert("Could not read that file as exported comment JSON.");
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("export-md").addEventListener("click", () => {
+    let md = "# Woodseer Analyst Tasks - Refactor Audit\n\nCompiled by Eddard · source: /home/jcervan/Woodseer-app · 2026-07-07\n\n";
+    let currentCat = null;
+    RULES.forEach((r, i) => {
+      if (r.cat !== currentCat) {
+        currentCat = r.cat;
+        md += "\n## " + CATEGORY_META[currentCat].label + "\n" + CATEGORY_META[currentCat].desc + "\n\n";
+      }
+      md += "### " + (i+1) + ". " + r.title + (r.dead ? " [NOT WIRED IN]" : "") + "\n\n";
+      md += "**Citation:** " + r.cite.join(", ") + "\n\n";
+      md += r.explanation + "\n\n";
+      md += "**Example**\n```\n" + r.example + "\n```\n\n";
+      md += "**Refactor note:** " + r.note + "\n\n";
+      const comment = loadComment(r.id);
+      if (comment.trim()) md += "**Comment:** " + comment + "\n\n";
+    });
+    const blob = new Blob([md], {type:"text/markdown"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "woodseer-analyst-tasks-report.md";
+    a.click();
+  });
+});
+</script>

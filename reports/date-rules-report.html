@@ -1,0 +1,771 @@
+<title>Woodseer Date Rules - Refactor Audit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --border: #ddd8ce;
+    --text: #2b2a27;
+    --muted: #6b6558;
+    --accent: #8a5a2b;
+    --accent-soft: #f0e4d3;
+    --code-bg: #2b2a27;
+    --code-text: #f0ece2;
+    --warn-bg: #fbeee0;
+    --warn-border: #d99a4e;
+    --tag-bg: #efe9dd;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1a17;
+    --panel: #24221e;
+    --border: #3a362e;
+    --text: #ece7db;
+    --muted: #a89f8c;
+    --accent: #d69a5c;
+    --accent-soft: #3a2e1f;
+    --code-bg: #14130f;
+    --code-text: #e9e2d2;
+    --warn-bg: #332616;
+    --warn-border: #a1712f;
+    --tag-bg: #332c22;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1a17;
+      --panel: #24221e;
+      --border: #3a362e;
+      --text: #ece7db;
+      --muted: #a89f8c;
+      --accent: #d69a5c;
+      --accent-soft: #3a2e1f;
+      --code-bg: #14130f;
+      --code-text: #e9e2d2;
+      --warn-bg: #332616;
+      --warn-border: #a1712f;
+      --tag-bg: #332c22;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.25);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 20px 100px;
+  }
+  header.page-head { margin-bottom: 24px; }
+  header.page-head h1 { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header.page-head .sub { color: var(--muted); font-size: 0.95rem; }
+  header.page-head .meta { color: var(--muted); font-size: 0.82rem; margin-top: 10px; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+
+  .howto { font-size: 0.88rem; color: var(--muted); }
+  .howto strong { color: var(--text); }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding: 10px 0;
+    z-index: 5;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+  .toolbar input[type=search] {
+    flex: 1 1 220px;
+    padding: 8px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  button {
+    font: inherit;
+    font-size: 0.83rem;
+    cursor: pointer;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    padding: 7px 12px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .progress-pill {
+    font-size: 0.78rem;
+    color: var(--muted);
+    padding: 6px 10px;
+    background: var(--tag-bg);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .category-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .category-nav button {
+    font-size: 0.78rem;
+    padding: 5px 10px;
+    background: var(--tag-bg);
+  }
+  .category-nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  section.category { margin-bottom: 30px; }
+  section.category h2 {
+    font-size: 1.05rem;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    border-bottom: 2px solid var(--accent-soft);
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+  }
+  section.category h2 .count { font-size: 0.78rem; color: var(--muted); font-weight: normal; }
+  section.category p.category-desc { color: var(--muted); font-size: 0.85rem; margin: -8px 0 14px; }
+
+  .rule-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .rule-card summary {
+    cursor: pointer;
+    padding: 13px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    list-style: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .rule-card summary::-webkit-details-marker { display: none; }
+  .rule-card summary .chev { color: var(--muted); font-size: 0.75rem; transition: transform 0.15s; }
+  .rule-card[open] summary .chev { transform: rotate(90deg); }
+  .rule-card summary .num { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 700; min-width: 28px; }
+  .rule-card summary .commented-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #6a9955; flex-shrink: 0; display: none;
+  }
+  .rule-card.has-comment summary .commented-dot { display: inline-block; }
+
+  .rule-body { padding: 4px 18px 18px 54px; }
+  .cite {
+    display: inline-block;
+    font-size: 0.76rem;
+    background: var(--tag-bg);
+    color: var(--muted);
+    padding: 2px 8px;
+    border-radius: 5px;
+    margin: 0 6px 6px 0;
+  }
+  .rule-body h4 {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 14px 0 5px;
+  }
+  .rule-body p { margin: 0 0 8px; font-size: 0.92rem; }
+  .example-block {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 10px 13px;
+    border-radius: 7px;
+    font-size: 0.83rem;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+  .refactor-note {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 7px;
+    padding: 9px 12px;
+    font-size: 0.86rem;
+  }
+  textarea.comment-box {
+    width: 100%;
+    min-height: 64px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 11px;
+    font: inherit;
+    font-size: 0.88rem;
+    background: var(--bg);
+    color: var(--text);
+  }
+  textarea.comment-box:focus { outline: 1.5px solid var(--accent); }
+  .save-hint { font-size: 0.72rem; color: var(--muted); margin-top: 4px; height: 14px; }
+
+  .eddard-notes {
+    border-left: 3px solid var(--accent);
+    padding-left: 14px;
+  }
+  .eddard-notes li { margin-bottom: 8px; font-size: 0.92rem; }
+  .eddard-notes strong { color: var(--accent); }
+
+  footer.page-foot {
+    margin-top: 40px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+
+  .hidden { display: none !important; }
+  mark { background: var(--accent-soft); color: inherit; border-radius: 3px; }
+
+  @media (max-width: 640px) {
+    .rule-body { padding-left: 20px; }
+    .rule-card summary .num { min-width: 22px; }
+  }
+</style>
+
+<header class="page-head">
+  <h1>Woodseer - Date Rules Refactor Audit</h1>
+  <div class="sub">Every date-related business rule found in <code>Woodseer-app</code>, cited to file and line, with a worked example and a place for your notes.</div>
+  <div class="meta">Compiled by Eddard · source: <code>/home/jcervan/Woodseer-app</code> · 2026-07-07</div>
+</header>
+
+<div class="panel howto">
+  <strong>How this works:</strong> this is a static file - open it in any browser, no server needed. Your comments autosave to this browser's local storage as you type. Click <strong>Export comments (JSON)</strong> before switching browsers/machines, or periodically as a backup - re-import it later with <strong>Import</strong>. Click <strong>Export report (Markdown)</strong> to get a plain-text snapshot (rules + your comments) to paste into a ticket or doc.
+</div>
+
+<div class="panel">
+  <h2 style="margin-top:0; font-size:1rem;">Eddard's top-line notes for the refactor</h2>
+  <ul class="eddard-notes">
+    <li><strong>This is a bespoke rule DSL with no spec.</strong> <code>DateRule</code> (<span class="mono">app/models/date_rule.rb</span>) defines 19 <code>value_type</code> integer constants that combine into rulesets. The only "documentation" of what a valid combination means lives implicitly across <code>RuleBuilder</code>, <code>DateForecaster</code>, and <code>RuleFormatter</code> - three files that each independently encode which value types are legal together. A refactor should extract one canonical rule-shape definition (even just a lookup table of valid combinations) that all three read from, instead of three parallel case statements that can silently drift out of sync.</li>
+    <li><strong>Country/index exceptions are scattered, not centralized.</strong> Japan, Korea, and FTSE MIB constituents each get hardcoded rule overrides, but the checks live in different files (<span class="mono">RuleBuilder</span>, <span class="mono">DateForecaster</span>) using different mechanisms (bucket-level hardcoding vs. forecast-time branching). A strategy-pattern registry keyed by country/index would make it obvious where to add the next exception, and obvious what exceptions already exist.</li>
+    <li><strong>Confidence scoring is tunable but untested at the boundary.</strong> The <span class="mono">calculate_confidence</span> formula (rule #20) and the COVID-19 carve-out (rule #21) are hand-tuned magic numbers with no named constants. A single dividend landing right at the 50% "sufficient confidence" cliff-edge flips the forecaster between a learned pattern and a naive guess - worth adding explicit boundary tests before touching this formula.</li>
+    <li><strong>No DB-level guardrails on date ordering.</strong> Nothing enforces <code>declaration_date ≤ ex_div_date ≤ record_date ≤ pay_date</code> at the model or database level (see rule #47) - the only place that ordering is *approximately* enforced is the pay-date-after-record-date check in <code>DateCalculator</code> (rule #43), and even that runs imperatively, not as a validation. Consider adding this as an explicit, testable model validation independent of the forecasting engine.</li>
+    <li><strong>The holiday calendar has no recurrence rule</strong> (rule #33) - every public holiday for every country is a manually inserted row for a single exact date. If this table isn't kept current, business-day math silently degrades (a missed holiday just looks like an ordinary work day) rather than failing loudly. Worth a health-check job that flags countries with no holidays on file for the upcoming year.</li>
+  </ul>
+</div>
+
+<div class="toolbar">
+  <input type="search" id="search" placeholder="Search rules, files, keywords…">
+  <span class="progress-pill" id="progress">0 / 0 commented</span>
+  <button id="expand-all">Expand all</button>
+  <button id="collapse-all">Collapse all</button>
+  <button id="export-json">Export comments (JSON)</button>
+  <button id="import-json">Import comments</button>
+  <button id="export-md" class="primary">Export report (Markdown)</button>
+  <input type="file" id="import-file" accept="application/json" class="hidden">
+</div>
+
+<div class="category-nav" id="category-nav"></div>
+
+<div id="categories"></div>
+
+<footer class="page-foot">
+  Eddard | OptionMetrics Analyst - "The code never lies."<br>
+  Generated for the Woodseer refactor project. Comments live only in this browser's local storage until exported.
+</footer>
+
+<script>
+const RULES = [
+{cat:"value-types", title:"DAY_OF_WEEK", cite:["app/models/date_rule.rb:13","app/forecasting/date_rules/rule_formatter.rb:85","app/forecasting/date_rules/date_forecaster.rb:95-102"],
+  explanation:"A ruleset can pin a date to a specific weekday (Sunday=0 .. Saturday=6). When it's the only rule in the set, the forecaster moves the date to the nearest occurrence of that weekday in either direction; combined with other rules (month, week-of-month, etc.) it instead defines which weekday within that period.",
+  example:"rules = [DAY_OF_WEEK: 1 (Monday)]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,4,1)   // nearest Monday to April 4, 2019",
+  note:"Standalone vs. combined DAY_OF_WEEK take two different code paths (move_to_closest_day_of_week vs. move_to_day_of_week) - easy to break one while fixing the other."},
+
+{cat:"value-types", title:"DAY_OF_MONTH", cite:["app/models/date_rule.rb:14","app/forecasting/date_rules/rule_formatter.rb:87","app/forecasting/date_rules/date_forecaster.rb:103"],
+  explanation:"Pins the date to a fixed numbered day of the month (e.g. 'the 15th').",
+  example:"rules = [DAY_OF_MONTH: 12]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,4,12)",
+  note:"No bounds-checking against the target month's actual length is visible at this layer - relies on DateCalculator.build_date_at's leap-day patch (rule #34) rather than validating day <= 28/29/30/31 itself."},
+
+{cat:"value-types", title:"WEEK_OF_MONTH", cite:["app/models/date_rule.rb:15","app/forecasting/date_rules/rule_formatter.rb:88","app/forecasting/date_rules/date_forecaster.rb:88"],
+  explanation:"The Nth occurrence of a weekday within a month (e.g. '2nd week'), computed via date_on_month_week_day.",
+  example:"rules = [WEEK_OF_MONTH: 2]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,4,11)",
+  note:"'Week of month' here means 'weeks since the 1st', not a calendar week - the 1st–7th is always week 1 regardless of what weekday the month starts on."},
+
+{cat:"value-types", title:"DAY_OF_YEAR", cite:["app/models/date_rule.rb:16","app/forecasting/date_rules/date_forecaster.rb:76"],
+  explanation:"Pins the date to the Nth day of the calendar year, counting from Jan 1st.",
+  example:"rules = [DAY_OF_YEAR: 250]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,9,7)   // the 250th day of 2019",
+  note:"Silently shifts by a day in leap years since it's a raw day-count from Jan 1 - no leap-year compensation, unlike the DATE_TYPES that go through build_date_at."},
+
+{cat:"value-types", title:"MONTH_OF_YEAR", cite:["app/models/date_rule.rb:17","app/forecasting/date_rules/rule_formatter.rb:86","app/forecasting/date_rules/date_forecaster.rb:83,143-147"],
+  explanation:"Pins the month. Used alone or combined with day/week rules. When used alone, move_to_month snaps to either the start or end of the target month depending on whether it's earlier or later than the current date.",
+  example:"rules = [MONTH_OF_YEAR: 3]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,3,31)   // March is 'before' April, so it snaps to March's END, not its start",
+  note:"This start-vs-end snapping behavior is not obvious from the rule name alone and has surprised at least one test author enough to comment it - a strong candidate for renaming/documenting explicitly in a refactor."},
+
+{cat:"value-types", title:"WEEK_OF_YEAR", cite:["app/models/date_rule.rb:18","app/forecasting/date_rules/date_forecaster.rb:86,172-176"],
+  explanation:"Pins the ISO-style week number of the year (anchored so weeks starting Friday/Saturday count towards the new year).",
+  example:"rules = [WEEK_OF_YEAR: 15]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,4,8)",
+  note:"Has a near-duplicate sibling, EXCEL_WEEK_OF_YEAR (next rule), with a different anchoring convention - two competing week-numbering systems live side by side in the same rule engine."},
+
+{cat:"value-types", title:"EXCEL_WEEK_OF_YEAR", cite:["app/models/date_rule.rb:19","app/forecasting/date_rules/date_forecaster.rb:87,167-170","app/forecasting/date_rules/dividend_date_values.rb:19-23"],
+  explanation:"A second week-of-year numbering scheme matching Excel's WEEKNUM formula convention, kept separate from the ISO-style WEEK_OF_YEAR because they disagree at year boundaries.",
+  example:"rules = [EXCEL_WEEK_OF_YEAR: 15]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,4,8)",
+  note:"Two week-numbering systems for the same underlying concept, each with its own inverse function (date_on_week_of_year vs date_on_excel_week_of_year) - a refactor should ask whether both are still needed or if this is legacy-vendor-format debt."},
+
+{cat:"value-types", title:"BUSINESS_DAY_OF_MONTH", cite:["app/models/date_rule.rb:20","app/forecasting/date_rules/rule_formatter.rb:93","app/forecasting/date_rules/date_forecaster.rb:91"],
+  explanation:"The Nth business day counting from the 1st of the month (0-indexed internally; displayed as 1-indexed, see rule_formatter.rb:93's value+1).",
+  example:"rules = [BUSINESS_DAY_OF_MONTH: 8]  // displays as \"9th business day\"\n(with a public holiday on 2019-04-11)\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,4,12)   // the holiday pushed it one day later",
+  note:"0-indexed in storage but 1-indexed in the UI label - a classic off-by-one trap for anyone reading raw DateRule rows without going through RuleFormatter."},
+
+{cat:"value-types", title:"DAYS_FROM_END_OF_MONTH", cite:["app/models/date_rule.rb:21","app/forecasting/date_rules/date_forecaster.rb:93"],
+  explanation:"Calendar days counted backward from the last day of the month (0 = the last day itself).",
+  example:"rules = [DAYS_FROM_END_OF_MONTH: 0]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,4,30)   // last day of April",
+  note:"Calendar-day sibling of BUSINESS_DAYS_FROM_END_OF_MONTH below - the two are easy to confuse since only one word differs, and they use different underlying date math (plain arithmetic vs. shift_business_days)."},
+
+{cat:"value-types", title:"BUSINESS_DAYS_FROM_END_OF_MONTH", cite:["app/models/date_rule.rb:22","app/forecasting/date_rules/date_forecaster.rb:92"],
+  explanation:"Business days counted backward from the last day of the month, skipping weekends/holidays.",
+  example:"rules = [BUSINESS_DAYS_FROM_END_OF_MONTH: -3]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,4,25)   // 3rd-to-last business day of April",
+  note:"See DAYS_FROM_END_OF_MONTH above - consider merging into one rule type with a business-day flag instead of two parallel value types."},
+
+{cat:"value-types", title:"DAYS_RELATIVE_TO_FIELD", cite:["app/models/date_rule.rb:23","app/forecasting/date_rules/date_forecaster.rb:105-116,120-131"],
+  explanation:"Defines a date purely as N calendar days before/after one of the other three dividend dates (declaration/ex/record/pay), recursively resolved via DateForecaster#relative_date.",
+  example:"rules = [DAYS_RELATIVE_TO_FIELD: 20, relative_to: DECLARATION_DATE]\n(next_declaration_date resolves to 2019-03-01)\napply_rules_to_date(...) => Date(2019,3,21)   // 20 days after declaration",
+  note:"Powers the circular-dependency problem in rule #24 - two fields can each be defined 'relative to' the other with no anchor, which the code has to explicitly detect and break."},
+
+{cat:"value-types", title:"BUSINESS_DAYS_RELATIVE_TO_FIELD", cite:["app/models/date_rule.rb:24","app/forecasting/date_rules/date_forecaster.rb:105-116"],
+  explanation:"Same as DAYS_RELATIVE_TO_FIELD but counts business days (skipping weekends/holidays) instead of calendar days.",
+  example:"rules = [BUSINESS_DAYS_RELATIVE_TO_FIELD: 5, relative_to: DECLARATION_DATE]\n(next_declaration_date resolves to 2019-03-01)\napply_rules_to_date(...) => Date(2019,3,8)   // 5 business days later, skipping the weekend",
+  note:"Also subject to the settlement-period override (rule #37) - the stored 'value' can be silently replaced with a freshly-calculated settlement diff at forecast time."},
+
+{cat:"value-types", title:"BUSINESS_DAY_LTE_DATE", cite:["app/models/date_rule.rb:25","app/forecasting/date_rules/rule_formatter.rb:94","app/forecasting/date_rules/date_forecaster.rb:73,249-251"],
+  explanation:"The first business day on or before a fixed month/day anchor.",
+  example:"rules = [BUSINESS_DAY_LTE_DATE, closest_date: Aug 11]\n(Aug 11, 2019 is a Sunday)\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,8,9)   // rolls back to Friday",
+  note:"One of six near-identical 'closest business/weekday to an anchor date' rule types (13-17 in this list) - a strong candidate for consolidating into one parametrized rule (direction: before/after/closest, unit: business-day/weekday)."},
+
+{cat:"value-types", title:"BUSINESS_DAY_GTE_DATE", cite:["app/models/date_rule.rb:26","app/forecasting/date_rules/rule_formatter.rb:95","app/forecasting/date_rules/date_forecaster.rb:74"],
+  explanation:"The first business day on or after a fixed month/day anchor - the mirror image of BUSINESS_DAY_LTE_DATE.",
+  example:"rules = [BUSINESS_DAY_GTE_DATE, closest_date: Aug 11]\n(Aug 11, 2019 is a Sunday)\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,8,12)   // rolls forward to Monday",
+  note:"See consolidation note on BUSINESS_DAY_LTE_DATE above."},
+
+{cat:"value-types", title:"BUSINESS_DAY_CLOSEST_TO_DATE", cite:["app/models/date_rule.rb:27","app/forecasting/date_rules/rule_formatter.rb:96","app/forecasting/date_rules/date_forecaster.rb:75","app/calculators/date_calculator.rb:113-120"],
+  explanation:"The nearest business day to a fixed anchor in either direction; ties are broken in favor of the later date (see rule #32).",
+  example:"rules = [BUSINESS_DAY_CLOSEST_TO_DATE, closest_date: Aug 11]\n(Aug 11, 2019 is a Sunday: Fri Aug 9 is 2 days away, Mon Aug 12 is 1 day away)\napply_rules_to_date(...) => Date(2019,8,12)   // Monday is strictly closer",
+  note:"Precise-rule status (DateRule#precise?, date_rule.rb:69-71) is granted to this and 4 other value types - 'precise' rules skip the normal confidence-based fallback path entirely, so a bug here has an outsized blast radius."},
+
+{cat:"value-types", title:"WEEKDAY_LTE_DATE", cite:["app/models/date_rule.rb:28","app/forecasting/date_rules/rule_formatter.rb:97","app/forecasting/date_rules/date_forecaster.rb:77,178-182"],
+  explanation:"The first occurrence of a specific weekday (not just any business day) on or before a fixed month/day anchor.",
+  example:"rules = [WEEKDAY_LTE_DATE: Monday, closest_date: Sept 22, 2019]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,9,16)   // the Monday on/before Sept 22",
+  note:"Distinct from BUSINESS_DAY_LTE_DATE (any work day) - the naming similarity between 'weekday' and 'business day' rule families throughout this file is a readability hazard."},
+
+{cat:"value-types", title:"WEEKDAY_GTE_DATE", cite:["app/models/date_rule.rb:29","app/forecasting/date_rules/rule_formatter.rb:98","app/forecasting/date_rules/date_forecaster.rb:78"],
+  explanation:"The first occurrence of a specific weekday on or after a fixed month/day anchor - mirror of WEEKDAY_LTE_DATE.",
+  example:"rules = [WEEKDAY_GTE_DATE: Thursday, closest_date: Sept 22, 2019]\napply_rules_to_date(ruleset, Date(2019,4,4), dividend)\n=> Date(2019,9,26)",
+  note:"See naming-hazard note on WEEKDAY_LTE_DATE."},
+
+{cat:"value-types", title:"WEEKDAY_OF_MONTH", cite:["app/models/date_rule.rb:30","app/forecasting/date_rules/rule_formatter.rb:89","app/forecasting/date_rules/date_forecaster.rb:80,155-165"],
+  explanation:"The Nth occurrence of a given weekday within a month, e.g. 'the 3rd Monday' - used together with MONTH_OF_YEAR and DAY_OF_WEEK rules.",
+  example:"rules = [DAY_OF_WEEK: Monday, WEEKDAY_OF_MONTH: 3, MONTH_OF_YEAR: December]\napply_rules_to_date(ruleset, Date(2021,12,10), dividend)\n=> Date(2021,12,20)   // 3rd Monday of December 2021",
+  note:"Near-duplicate of WEEK_OF_MONTH (rule #3) which counts 'weeks since the 1st' rather than 'occurrences of this weekday' - the two produce different results for the same input in some months and are easy to mix up."},
+
+{cat:"value-types", title:"DATE_DIFF", cite:["app/models/date_rule.rb:31","app/forecasting/date_rules/rule_formatter.rb:99,102","app/forecasting/date_rules/date_forecaster.rb:65-67"],
+  explanation:"An additional day offset layered on top of whatever date another rule in the same set already computed, e.g. 'N days after the 3rd Monday of the month'.",
+  example:"rules = [DAY_OF_WEEK: Monday, WEEKDAY_OF_MONTH: 3, MONTH_OF_YEAR: December, DATE_DIFF: 3]\napply_rules_to_date(ruleset, Date(2021,12,10), dividend)\n=> Date(2021,12,23)   // 3 days after the 3rd Monday of December",
+  note:"Applied unconditionally as the last step in apply_rules_to_date (date_forecaster.rb:65-67) - if a ruleset somehow contains two DATE_DIFF-shaped rules this would silently apply only rule_for's first match, not both."},
+
+{cat:"inference", title:"Confidence score formula", cite:["app/forecasting/date_rules/rule_builder.rb:212-223"],
+  explanation:"Every inferred rule gets a 0-100 confidence score: (fraction of historical dividends matching the pattern) × a sample-size penalty (harsher below 10 observations) × a 'recent break' penalty (a mismatch closer to the most recent dividend hurts more than an old one) × 95.",
+  example:"9 of the last 10 dividends match a pattern, but the most recent one (index 9) breaks it:\nconfidence = (9/10) × 1.0 × (1 − 0.65²) × 95 = 49   // rounds to 49 - just under the 'sufficient' bar",
+  note:"A single most-recent exception can flip a 90%-consistent, decade-long pattern from 'trusted' to 'discarded' purely because of where in the sequence it falls - worth an explicit boundary test suite before refactoring this formula."},
+
+{cat:"inference", title:"COVID-19 exception carve-out", cite:["app/forecasting/date_rules/rule_builder.rb:200-210,217-218"],
+  explanation:"If the most recent pattern-breaking dividend fell within a hardcoded window (2020-03-01 to 2020-12-31) and its date is more than 14 days off the expected 1-year cycle, the 'recent break' penalty from the confidence formula is softened by a further 0.38× multiplier - an explicit assumption that COVID-era disruption shouldn't permanently poison an otherwise-good pattern.",
+  example:"Same 9/10 scenario as the confidence example above, but the exception falls in the COVID window:\nconfidence = (9/10) × 1.0 × (1 − 0.65² × 0.38) × 95 = 72   // now safely 'sufficient'",
+  note:"A fixed calendar range baked into a scoring formula with no configuration surface - it won't cover any future market-wide disruption, and there's no test documenting *why* 2020-03-01–2020-12-31 was chosen over any other window."},
+
+{cat:"inference", title:"Sufficient-confidence threshold", cite:["app/forecasting/date_rules/rule_set.rb:72-74"],
+  explanation:"A ruleset is only trusted for forecasting if its confidence is 50 or higher. Below that, the forecaster ignores the learned pattern entirely and falls back to a naive 'same weekday, one year later' guess.",
+  example:"ruleset.confidence = 49  => sufficient_confidence? is false => forecaster uses same_work_day_next_year instead\nruleset.confidence = 50  => sufficient_confidence? is true  => forecaster uses the learned rule",
+  note:"The threshold (50) is a bare literal with no named constant - searching the codebase for '50' to find this business rule is not obvious to a new engineer."},
+
+{cat:"inference", title:"Rule-shape preference ranking (sort_score)", cite:["app/forecasting/date_rules/rule_set.rb:76-96"],
+  explanation:"When multiple candidate rulesets exist, they're ranked not just by confidence but by a hand-tuned bonus/penalty table that prefers certain rule *shapes* - e.g. 'N business days relative to another field' (+0.45) is preferred over 'day of year' (−0.35) even at equal confidence.",
+  example:"Two rulesets both at confidence 80: 'ex-date = record-date − 2 business days' (BUSINESS_DAYS_RELATIVE_TO_FIELD, +0.45) beats 'ex-date = day 250 of the year' (DAY_OF_YEAR, −0.35) - the relative-to-field version becomes best_ruleset.",
+  note:"14 hardcoded bonus/penalty values in one method with no comment explaining the relative weighting rationale - a refactor risks silently changing which rule 'wins' for existing securities if these constants are touched without a regression suite of real securities."},
+
+{cat:"inference", title:"Circular ruleset resolution", cite:["app/forecasting/date_rules/dividend_rule_setter.rb:69,78-93","app/forecasting/date_rules/rule_set.rb:98-108"],
+  explanation:"If the best ex-date rule is defined relative to record-date, AND the best record-date rule is defined relative to ex-date, neither has an absolute anchor - a circular dependency. The system detects this and forces one side back to its best *absolute* (non-relative) ruleset, preferring the ex-date-as-anchor for ETFs and record-date-as-anchor otherwise.",
+  example:"ex-date rule: 'record_date − 2 business days' (relative)\nrecord-date rule: 'ex_date + 2 business days' (relative)\n=> circular_rulesets? is true => one side is replaced with its best absolute alternative",
+  note:"The choice of which side wins ('in the ETF world, ex-div dates appear to be anchor dates', dividend_rule_setter.rb:83) is a comment-only justification for a asymmetric business rule - worth confirming this still holds before extending to new security types."},
+
+{cat:"inference", title:"Minimum sample size per bucket", cite:["app/forecasting/date_rules/dividend_bucket_builder.rb:9,32-34,57-59"],
+  explanation:"A bucket (e.g. 'all Q1 dividends for this security') needs more than 2 historical dividends before any rule is attempted at all - unless the security is on the hardcoded-rules list (Japan, Korea, FTSE MIB), which skips this check entirely.",
+  example:"A security with exactly 2 historical Q1 dividends => bucket dropped => no DateRule created for Q1 => forecaster always falls back to same_work_day_next_year for that dividend position.",
+  note:"'2' is an inline literal (b.dividend_count > 2) - a newly-listed security with a short history gets no forecasting benefit from this whole engine until its 4th dividend of a given type is recorded."},
+
+{cat:"hardcoded", title:"Japan: hardcoded month-end record date", cite:["app/forecasting/date_rules/rule_builder.rb:28,237-242"],
+  explanation:"If a security is listed in Japan and every historical record date fell exactly on month-end, the system skips normal inference and hardcodes 'record date = last day of the month' at confidence 99, bypassing the match-rate formula entirely.",
+  example:"security.is_listed_in_japan? == true, all historical DAYS_FROM_END_OF_MONTH values == 0\n=> ruleset = [MONTH_OF_YEAR, DAYS_FROM_END_OF_MONTH: 0], confidence: 99 (hardcoded, not calculated)",
+  note:"A country-name string check embedded in the general-purpose rule builder - every future country-specific exception risks being added the same ad hoc way instead of through a shared mechanism."},
+
+{cat:"hardcoded", title:"Japan vs. Korea vs. everyone else: year-rollover", cite:["app/forecasting/date_rules/date_forecaster.rb:237-243","spec/forecasting/date_rules/date_forecaster_spec.rb:507-533"],
+  explanation:"When no confident rule exists, 'next year's date' is computed differently by nationality: Japan always keeps the exact month-end one year later; Korea and the US both use the generic weekday-preserving same_work_day_next_year - but the underlying same_day_next_year math produces different-looking results for Korea vs. what a reader might assume 'same as US logic' means, since the two countries' holiday calendars differ.",
+  example:"2015-12-31 (Thu), one year later:\n  Japan  => 2016-12-31  (exact month-end preserved)\n  Korea  => 2016-12-29  (nearest matching weekday, adjusted for KR holidays)",
+  note:"Only Japan gets special-cased in end_of_month_record_date? - every other country, including Korea, silently shares one code path. If a third country needs its own quirk, this boolean method has no obvious extension point."},
+
+{cat:"hardcoded", title:"FTSE MIB: hardcoded ex-date rule", cite:["app/forecasting/date_rules/rule_builder.rb:29,66-75,229-231","app/calculators/date_calculator.rb:128-136"],
+  explanation:"Any constituent of the FTSE MIB 40 index gets its ex-dividend date hardcoded to 'the Friday that's the 3rd weekday-occurrence in the last-observed month, plus 3 days' at confidence 99 - regardless of how consistent that specific security's own history actually is.",
+  example:"security is an FTSE MIB constituent, last observed ex-date was in May\n=> ex-date ruleset forced to [MONTH: May, DAY_OF_WEEK: Friday, WEEKDAY_OF_MONTH: 3, DATE_DIFF: 3], confidence: 99",
+  note:"Index membership can change over time (market_index_ids.include?), but there's no visible mechanism to re-evaluate or remove this hardcoding if a security later leaves the FTSE MIB."},
+
+{cat:"hardcoded", title:"FTSE MIB: hardcoded record-date rule", cite:["app/forecasting/date_rules/rule_builder.rb:30,77-80,225-227"],
+  explanation:"For the same FTSE MIB constituents, record date is forced to 'ex-date + 1 business day' (via the exchange's current settlement period), again overriding whatever the data-driven rule would have found.",
+  example:"security is an FTSE MIB constituent\n=> record-date ruleset forced to BUSINESS_DAYS_RELATIVE_TO_FIELD(EX_DIV_DATE, +1), confidence: 99",
+  note:"Depends on add_ftse_mib_ex_date_ruleset having already run first in the same build() call (rule_builder.rb:29-30 ordering matters) - an implicit sequencing dependency that isn't enforced by the method signature."},
+
+{cat:"business-day", title:"Work-day definition", cite:["app/calculators/date_calculator.rb:63-65"],
+  explanation:"A date is a work day if it isn't Saturday, isn't Sunday, and isn't a stored holiday for the given country.",
+  example:"is_work_day?(Date(2024,12,25), uk_country_id) => false  (Wednesday, but a stored UK holiday)\nis_work_day?(nil, uk_country_id) => true   // nil dates pass through as 'work days'",
+  note:"date.nil? || ... on line 64 means a nil date is treated as a work day by this method - callers that don't guard against nil upstream could get surprising behavior rather than an error."},
+
+{cat:"business-day", title:"Business-day shifting", cite:["app/calculators/date_calculator.rb:31-39,122-126"],
+  explanation:"shift_business_days first snaps the starting date onto a work day, then steps the requested number of business days from there one day at a time, skipping weekends and holidays at every step.",
+  example:"shift_business_days(Date(2019,4,4), 8, country, false)\nwith a public holiday on 2019-04-11\n=> Date(2019,4,12)   // the holiday adds one extra day to the walk",
+  note:"Implemented as a day-by-day loop rather than a calendar lookup - fine at current data volumes, but an O(n) walk per call across a long holiday cluster (e.g. multi-week national shutdowns) is worth knowing about before adding it to a hot path."},
+
+{cat:"business-day", title:"Closest-work-day tie-break", cite:["app/calculators/date_calculator.rb:113-120"],
+  explanation:"When 'the business day closest to X' is genuinely equidistant in both directions, the code favors the later (forward) date. (In practice this is rare - a true tie only happens with a specific holiday+weekend combination on both sides.)",
+  example:"increment (forward work day) and decrement (backward work day) are equally far from X\n=> the method returns increment (the forward date), not decrement",
+  note:"The tie-break rule is implicit in a single comparison operator (> vs >=) rather than stated as a business rule anywhere - a one-character change here would silently flip which date wins on tied dates."},
+
+{cat:"business-day", title:"Public holidays: one exact date per country, no recurrence", cite:["app/models/public_holiday.rb:1-13"],
+  explanation:"Holidays are stored as individual rows, one per (country, exact calendar date) - validated unique on that pair. There is no 'recurring holiday' concept (e.g. 'every Dec 25th'); each year's instance of every holiday, for every country, must be inserted separately.",
+  example:"PublicHoliday.create(country: uk, holiday_date: '2026-12-25')\n// 2027-12-25 needs its own separate row, or is_work_day? will treat it as a normal work day",
+  note:"This is the single biggest silent-failure risk in the whole date-rules engine: if next year's holiday data isn't loaded in time, every business-day calculation for that country just quietly treats the holiday as a work day - no error, no warning."},
+
+{cat:"business-day", title:"Leap-day substitution", cite:["app/calculators/date_calculator.rb:165-173"],
+  explanation:"When a rule's target day/month is February 29th but the target year isn't a leap year, build_date_at silently substitutes February 28th instead of letting Date.new raise an error.",
+  example:"DateCalculator.build_date_at(29, 2, 2019) => Date(2019,2,28)   // 2019 is not a leap year\nDateCalculator.build_date_at(29, 2, 2020) => Date(2020,2,29)   // 2020 is a leap year",
+  note:"A silent substitution (rather than an explicit 'observed on Feb 28' flag) means a Feb-29-anchored rule quietly changes its actual calendar meaning 3 years out of 4 - worth surfacing this to the UI rather than hiding it."},
+
+{cat:"settlement", title:"T+N lookup via effective-dated settlement periods", cite:["app/calculators/date_calculator.rb:21-24,26-28"],
+  explanation:"The number of business days between record date and ex-date is looked up per-exchange from a SettlementPeriod table, using the most recent row whose effective_date is on or before the date in question - so historical dividends correctly use the settlement cycle that was in force at the time (e.g. T+3 before an exchange's move to T+2 or T+1), defaulting to 1 day if no settlement period is on file at all.",
+  example:"exchange has settlement_periods: [effective_date: 2018-08-14, days: 0]\nex_date_record_date_diff(Date(2019,1,1), exchange) => 0   // the 2018 row is still the most recent one <= the date",
+  note:"The '1 day' fallback when no settlement period row exists at all (date_calculator.rb:23, record&.days || 1) is a silent default, not a logged warning - a newly onboarded exchange with no settlement data will get a plausible-looking but unverified answer."},
+
+{cat:"settlement", title:"Ex-date derived from record date", cite:["app/calculators/date_calculator.rb:16-19"],
+  explanation:"Given a record date, the ex-date is calculated by shifting backward by the exchange's current settlement-period business-day count.",
+  example:"settlement_period.days = 0 for the exchange as of the relevant date\nex_date_from_record_date(record_date, exchange) => record_date itself   // same-day settlement (T+0)",
+  note:"Reuses shift_business_days (rule #31), so it inherits that method's day-by-day loop behavior and its 'snap starting date to a work day first' quirk."},
+
+{cat:"settlement", title:"Settlement period overrides a stored historical rule", cite:["app/forecasting/date_rules/date_forecaster.rb:279-282,105-115"],
+  explanation:"Even when a rule was learned from years of history (e.g. 'record date is ex-date + 3 days', learned back when the exchange settled T+3), if that exchange has a settlement period on file covering the forecast date, the stored day-count is discarded and recalculated from the *current* settlement period instead - should_override_date_rule?.",
+  example:"Learned rule: ex-date/record-date relative diff of 3 days (from T+3 era)\nException on forecast date: current settlement_period says T+1\n=> forecaster uses 1 day, not the learned 3, for the ex-date/record-date pair specifically",
+  note:"This override only fires for EX_DIV_DATE/RECORD_DATE pairs relative to each other - a declaration-date or pay-date rule expressed as 'N days relative to ex-date' would NOT get this same live-recalculation, an inconsistency worth confirming is intentional."},
+
+{cat:"rollover", title:"Same-weekday-next-year algorithm", cite:["app/calculators/date_calculator.rb:48-54"],
+  explanation:"Rather than naively adding 365/366 days, 'next year's date' is computed by finding the date exactly one year later that falls on the same ISO weekday, using a wraparound correction when the naive weekday difference would jump more than 3 days.",
+  example:"same_day_next_year(Date(2015,12,31))   // a Thursday\n=> Date(2016,12,29)   // Saturday one year later gets shifted back 2 days to the nearest Thursday",
+  note:"The '3 day' wraparound threshold (diff < -3) is an unexplained magic number - it happens to work because a week has 7 days and this picks the shorter direction around the wrap, but that reasoning isn't documented at the call site."},
+
+{cat:"rollover", title:"Same-work-day-next-year (weekday + holiday aware)", cite:["app/calculators/date_calculator.rb:56-61"],
+  explanation:"Layers a work-day check on top of same_day_next_year, but only ever advances forward day-by-day to find a work day - it never re-checks that the result still matches the originally-requested weekday.",
+  example:"Korea, 2015-12-31 (Thu) => same_day_next_year gives 2016-12-29 (Thu, already a work day) => returned as-is\nIf 2016-12-29 had instead been a KR holiday, the method would advance to 2016-12-30 - a Friday, not the requested Thursday",
+  note:"Silent weekday drift: once a holiday pushes the result forward, the 'same weekday' guarantee is broken for that year with no flag or logging - downstream code has no way to distinguish 'the pattern held' from 'the pattern was overridden by a holiday'."},
+
+{cat:"rollover", title:"December/January boundary correction", cite:["app/forecasting/date_rules/date_forecaster.rb:58-59"],
+  explanation:"After computing 'same day next year', if the ruleset's typical month is January but the naive rollover landed in December (or vice versa), the result is nudged by a hardcoded ±14 days - a heuristic patch for dividends that sit right at a year boundary.",
+  example:"// per the inline code comment:\n// \"add 2 weeks if the date is in December but rule says January\"\n// \"subtract 2 weeks if the date is in January but rule says December\"",
+  note:"14 days is a fixed guess, not derived from the specific security's own historical spacing - a security whose actual year-boundary dividend gap is closer to 10 or 20 days would still get shifted by exactly 14."},
+
+{cat:"schedule", title:"Known future schedule takes precedence over inferred rules", cite:["app/forecasting/date_rules/date_forecaster.rb:9-27,260-269","app/models/date_schedule.rb"],
+  explanation:"Before applying any inferred DateRule, the forecaster checks whether a manually-entered DateSchedule row exists for the next fiscal year (matched on fiscal_year+1, dividend_type, and position) - used for ETF issuers who publish their full future distribution calendar in advance. If found, that exact date is used outright, regardless of confidence or the learned pattern.",
+  example:"share.date_schedules has a row for fiscal_year: 2019, position: 2, ex_div_date: 2019-06-01\n=> next_ex_div_date(dividend) returns 2019-06-01 directly, skipping DateRule inference entirely",
+  note:"A ruleset with confidence 99 (e.g. a hardcoded country override) and a DateSchedule row can both exist for the same dividend - schedule always wins per the code's ||-based short-circuit, but there's no visible tie-break logging if the two disagree, which would be a useful signal that a hardcoded rule needs updating."},
+
+{cat:"schedule", title:"Vendor-specific distribution-schedule importers", cite:["lib/distribution_schedules/vanguard.rb:3","lib/distribution_schedules/blackrock.rb","lib/distribution_schedules/vaneck.rb","lib/distribution_schedules/spdr.rb","lib/distribution_schedules/invesco.rb","lib/distribution_schedules/direxion.rb","lib/distribution_schedules/first_trust.rb","lib/distribution_schedules/globalx.rb","lib/distribution_schedules/charles_schwab.rb","lib/distribution_schedules/wisdomtree.rb","lib/distribution_schedules/gs.rb"],
+  explanation:"Each ETF issuer's published future-distribution-date announcement is parsed by a bespoke, one-off script with its own hardcoded regex for that vendor's date format and its own hand-typed list of ISINs/dates copied from the announcement.",
+  example:"lib/distribution_schedules/vanguard.rb:3 - a single fixed regex expects exactly 4 MM/DD/YY dates per line, and the file contains ~200 manually-transcribed create_row(...) calls, one per ISIN per month.",
+  note:"11 separate one-off scripts with no shared date-parsing abstraction - adding a 12th issuer means writing a 12th bespoke script from scratch, and there's no validation step visible that catches a transcription typo in one of the ~200 hardcoded rows before it's saved."},
+
+{cat:"validation", title:"Pay date can't precede record date", cite:["app/calculators/date_calculator.rb:7-10,140-146"],
+  explanation:"Enforced imperatively (not as a model validation) at the point a dividend is saved: for Chinese exchanges, pay date is snapped up to record date if it would otherwise be earlier; for every other exchange the rule is stricter - pay date must be strictly *after* record date, snapped to record_date + 1 business day if it isn't.",
+  example:"Non-Chinese exchange: dividend.pay_date == dividend.record_date\n=> ensure_valid_pay_date rewrites pay_date to record_date + 1 business day\nChinese exchange: dividend.pay_date == dividend.record_date\n=> left unchanged (same-day is allowed for this market)",
+  note:"This is the closest thing in the codebase to a 'dates must be in order' rule, but it: (a) only covers one pair of the four dividend dates, (b) runs as an imperative mutation rather than a validation error, and (c) is silently market-specific with the exception list being a single StockExchange::CHINESE_STOCK_EXCHANGE_IDS constant rather than configurable settlement metadata."},
+
+{cat:"validation", title:"DateRule field constraints", cite:["app/models/date_rule.rb:55-61"],
+  explanation:"date_type, dividend_type, and value_type are each validated against a fixed Ruby array of integer constants (validates_inclusion_of); dividend_position must be present; and the combination of share/date_type/dividend_type/position/value_type/relative_to_date must be unique.",
+  example:"DateRule.new(value_type: 999, ...).valid? => false   // 999 isn't in DateRule::VALUE_TYPES\nDateRule.new(value_type: DateRule::DAY_OF_WEEK, date_type: DateRule::EX_DIV_DATE, dividend_type: DateRule::QUARTERLY, dividend_position: 1, relative_to_date: nil).valid? => true, but a second identical row would fail uniqueness",
+  note:"These are plain integer constants with no database enum or check constraint backing them - a direct SQL write or a raw update_column call bypasses ActiveRecord validation entirely and could insert an out-of-range value silently."},
+
+{cat:"validation", title:"SettlementPeriod: one row per exchange per effective date", cite:["app/models/settlement_period.rb:1-6"],
+  explanation:"Each stock exchange can only have one settlement-period row per effective_date, and days/effective_date/stock_exchange_id are all required.",
+  example:"SettlementPeriod.create(stock_exchange: asx, effective_date: '2017-03-01', days: 1)\n// a second row for asx with the same effective_date would fail uniqueness validation",
+  note:"Because rule #35's lookup uses effective_date <= ? ORDER BY effective_date DESC, a typo'd effective_date (e.g. wrong year) wouldn't fail any validation - it would just silently become 'the settlement period in effect' for a stretch of history it was never meant to cover."},
+
+{cat:"scopes", title:"Hardcoded visibility cutoff date", cite:["app/models/dividend.rb:21"],
+  explanation:"The visible scope excludes any dividend with an ex-div date on or before 2011-12-31, unconditionally, wherever this scope is used.",
+  example:"Dividend.visible  // SQL: ex_div_date > '2011-12-31'\n// a dividend with ex_div_date = 2011-06-15 is永久excluded from every view using this scope",
+  note:"A bare date literal embedded directly in a scope, not a named constant or configuration value - its original rationale (why 2011-12-31 specifically) isn't recorded anywhere near the code."},
+
+{cat:"scopes", title:"'Going ex this week' fixed 7-day window", cite:["app/models/dividend.rb:32"],
+  explanation:"ex_this_week takes a reference date and returns dividends with an ex-date in the following 7 days inclusive (date to date+6).",
+  example:"Dividend.ex_this_week(Date.current)\n// SQL: ex_div_date BETWEEN Date.current AND Date.current + 6",
+  note:"Since the app runs in UTC (rule #56), Date.current here is UTC's current date - for a user in a very different time zone, 'this week' can be off by a day at either edge."},
+
+{cat:"scopes", title:"'Declaration expected soon' compound threshold", cite:["app/models/dividend.rb:37"],
+  explanation:"An estimated dividend is flagged as 'declaration expected soon' if it has no declaration date yet AND (its ex-div date is within 7 days OR its own estimated declaration date is within 2 days) - two different hardcoded thresholds combined with an OR.",
+  example:"estimate, declaration_date: nil, ex_div_date: Date.current + 5  => matches (5 <= 7)\nestimate, declaration_date: Date.current + 1                     => matches (1 <= 2), even if ex-date is far away",
+  note:"Two magic numbers (7 and 2) with different units of 'soon' compounded via OR - worth confirming both thresholds are still correct together rather than independently, since changing one changes the scope's overall selectivity in a non-obvious way."},
+
+{cat:"scopes", title:"2-year dividend-recency staleness check", cite:["app/feeds/limeburner_announcement_creator.rb:36-41"],
+  explanation:"An incoming news/announcement is only treated as dividend-relevant for a matched security if that security declared a dividend within the last 2 years.",
+  example:"security.last_dividend.last_declared_dividend_date == 3.years.ago\n=> security_has_dividends? returns false => announcement classified as Announcement::NO_DIVIDENDS",
+  note:"A company resuming dividends after a gap longer than 2 years (e.g. a post-crisis reinstatement) would have its reinstatement announcement misclassified as 'no dividends' by this check."},
+
+{cat:"fiscal-year", title:"Fiscal year attribution from ex-date month", cite:["app/calculators/date_calculator.rb:75-80"],
+  explanation:"A corporate action's fiscal year is the ex-div date's calendar year - unless the ex-date falls in January or February, in which case it's attributed to the *previous* calendar year. ETFs are always attributed to the ex-date's literal calendar year, bypassing the Jan/Feb rule entirely.",
+  example:"Non-ETF, ex_div_date = 2024-01-15 => fiscal_year = 2023\nETF,     ex_div_date = 2024-01-15 => fiscal_year = 2024",
+  note:"The 'month > 2' cutoff is a blanket rule applied to securities from every country and exchange - a company whose actual fiscal year genuinely starts in February or March would still be forced through this same generic Jan/Feb heuristic."},
+
+{cat:"fiscal-year", title:"Scheduled distribution auto-classified Final vs. Interim", cite:["app/models/date_schedule.rb:14-22"],
+  explanation:"A DateSchedule row is labeled 'Final' purely by its position number matching the last expected position for its frequency (12th for monthly, 4th for quarterly, 2nd for biannual, 1st for annual) - every other position defaults to 'Interim'.",
+  example:"DateSchedule.new(dividend_type: QUARTERLY, position: 4).flag => Dividend::FINAL\nDateSchedule.new(dividend_type: QUARTERLY, position: 3).flag => Dividend::INTERIM",
+  note:"Hardcoded to standard frequency counts - a security with an irregular number of distributions per year (more or fewer than the 'normal' count for its stated frequency) would have its true final distribution mislabeled as Interim."},
+
+{cat:"matching", title:"Cross-year date matching tolerance", cite:["app/calculators/date_calculator.rb:84-92"],
+  explanation:"dates_match?/close_to? decide whether two dates 'are the same event' despite being in different years or off by a few days - three hardcoded tolerance tiers: 21 days ('low'), 46 days ('high'), or 60 days (anything else).",
+  example:"DateCalculator.dates_match?(Date(2013,1,1), Date(2012,12,31))  // 1 day apart across a year boundary\n=> true   // well within the 21-day 'low' tolerance",
+  note:"Three unnamed tolerance tiers selected by a loosely-typed symbol argument (:low, :high, or anything else falls through to 60) - worth turning into named constants and confirming every call site passes an intentional value rather than relying on the 'anything else' fallback."},
+
+{cat:"matching", title:"Year-aligned whole-year distance", cite:["app/calculators/date_calculator.rb:95-98,156-163,175-183"],
+  explanation:"years_within first snaps an out-of-sync date to whichever nearby year makes it 'match' the reference date (per the tolerance rule above), then computes the whole-year gap - a way of correcting a source date that's plausibly right except for a wrong year.",
+  example:"date = Date(2012,12,31), end_date = Date(2013,1,2)\n// close enough (2 days) to be considered a year-boundary match\n=> date is realigned to Date(2013,12,31)-equivalent before computing the year gap",
+  note:"This silently corrects what could be a genuine data-entry error (wrong year in a source feed) rather than flagging it for review - worth checking whether callers ever need to distinguish 'confirmed correct date' from 'auto-corrected date'."},
+
+{cat:"timezone", title:"App-wide fixed UTC time zone", cite:["config/application.rb:19","app/forecasting/date_rules/rule_builder.rb:117,121"],
+  explanation:"The whole Rails app runs with config.time_zone = 'UTC', so every Date.current/Time.zone.now call - including 'what is today's date' for settlement-period lookups during rule building - reflects UTC's current date, not any specific exchange's local trading day.",
+  example:"rule_builder.rb:117: DateCalculator.new.settlement_period_exists?(Date.current, @security.primary_exchange)\n// Date.current here is always UTC 'today', regardless of whether @security trades in Tokyo, Sydney, or New York",
+  note:"For exchanges far from UTC (Australia, Japan, NZ), 'today' per this app can differ from the exchange's actual local trading day for several hours around UTC midnight - worth checking whether any date-rule logic is sensitive to being off by one day in edge cases near midnight UTC."}
+];
+
+const CATEGORY_META = {
+  "value-types": {label: "Dividend Date Value Rules", desc: "The 19 value_type building blocks a DateRule can express - the vocabulary of the whole engine."},
+  "inference":   {label: "Rule Inference & Confidence", desc: "How the system decides which pattern is real, how confident it is, and which of several candidate patterns wins."},
+  "hardcoded":   {label: "Hardcoded Country & Index Overrides", desc: "Japan, Korea, and FTSE MIB constituents bypass normal inference entirely."},
+  "business-day":{label: "Business Day & Holiday Calendar", desc: "What counts as a work day, and how dates get shifted around non-work days."},
+  "settlement":  {label: "Settlement Periods (T+N)", desc: "How the gap between ex-date and record date is derived from each exchange's settlement cycle."},
+  "rollover":    {label: "Year-Rollover Logic", desc: "How 'next year's date' is projected forward from a known historical date."},
+  "schedule":    {label: "Known Schedule Overrides", desc: "Manually-sourced future distribution calendars that take precedence over any inferred rule."},
+  "validation":  {label: "Model-Level Validations", desc: "What the database/ActiveRecord layer actually enforces about dates (less than you'd expect)."},
+  "scopes":      {label: "Query Scopes & Staleness Windows", desc: "Hardcoded date thresholds baked into query scopes rather than the rules engine itself."},
+  "fiscal-year": {label: "Fiscal Year Determination", desc: "How a fiscal year and Final-vs-Interim status get attributed to a dividend."},
+  "matching":    {label: "Date Matching & Tolerance", desc: "Fuzzy-matching logic for reconciling dates across data sources and years."},
+  "timezone":    {label: "Timezone Configuration", desc: "The one global setting that quietly underlies every 'today' calculation above."}
+};
+
+const STORAGE_PREFIX = "woodseer-daterules-v1-";
+
+RULES.forEach((r, i) => { r.id = "rule-" + i; });
+
+function loadComment(id) {
+  try { return localStorage.getItem(STORAGE_PREFIX + id) || ""; } catch(e) { return ""; }
+}
+function saveComment(id, text) {
+  try {
+    if (text) localStorage.setItem(STORAGE_PREFIX + id, text);
+    else localStorage.removeItem(STORAGE_PREFIX + id);
+  } catch(e) {}
+}
+
+function el(tag, attrs, children) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === "class") e.className = attrs[k];
+    else if (k === "text") e.textContent = attrs[k];
+    else e.setAttribute(k, attrs[k]);
+  }
+  (children || []).forEach(c => { if (c) e.appendChild(c); });
+  return e;
+}
+
+function renderCite(cites) {
+  const wrap = el("div", {});
+  cites.forEach(c => wrap.appendChild(el("span", {class:"cite mono", text:c})));
+  return wrap;
+}
+
+function buildRuleCard(rule, index) {
+  const details = el("details", {class:"rule-card", "data-id": rule.id, "data-cat": rule.cat});
+  const summary = el("summary", {}, [
+    el("span", {class:"chev", text:"▶"}),
+    el("span", {class:"num", text:"#"+(index+1)}),
+    el("span", {class:"commented-dot"}),
+    el("span", {text: rule.title})
+  ]);
+  const body = el("div", {class:"rule-body"});
+  body.appendChild(renderCite(rule.cite));
+  body.appendChild(el("h4", {text:"What it does"}));
+  body.appendChild(el("p", {text: rule.explanation}));
+  body.appendChild(el("h4", {text:"Example"}));
+  body.appendChild(el("div", {class:"example-block", text: rule.example}));
+  body.appendChild(el("h4", {text:"Refactor note"}));
+  body.appendChild(el("div", {class:"refactor-note", text: rule.note}));
+  body.appendChild(el("h4", {text:"Your comment"}));
+  const textarea = el("textarea", {class:"comment-box", placeholder:"Notes for the refactor - leave blank if none…"});
+  textarea.value = loadComment(rule.id);
+  const hint = el("div", {class:"save-hint"});
+  let saveTimer;
+  textarea.addEventListener("input", () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveComment(rule.id, textarea.value);
+      hint.textContent = "Saved " + new Date().toLocaleTimeString();
+      details.classList.toggle("has-comment", !!textarea.value.trim());
+      updateProgress();
+    }, 250);
+  });
+  body.appendChild(textarea);
+  body.appendChild(hint);
+  details.appendChild(summary);
+  details.appendChild(body);
+  if (textarea.value.trim()) details.classList.add("has-comment");
+  return details;
+}
+
+function updateProgress() {
+  const total = RULES.length;
+  const commented = RULES.filter(r => loadComment(r.id).trim()).length;
+  document.getElementById("progress").textContent = commented + " / " + total + " commented";
+}
+
+function render() {
+  const container = document.getElementById("categories");
+  const nav = document.getElementById("category-nav");
+  const order = Object.keys(CATEGORY_META);
+  nav.appendChild(el("button", {class:"active", "data-cat":"all", text:"All"}));
+  order.forEach(cat => {
+    if (!RULES.some(r => r.cat === cat)) return;
+    nav.appendChild(el("button", {"data-cat":cat, text: CATEGORY_META[cat].label}));
+  });
+
+  order.forEach(cat => {
+    const rulesInCat = RULES.filter(r => r.cat === cat);
+    if (!rulesInCat.length) return;
+    const section = el("section", {class:"category", "data-cat":cat});
+    section.appendChild(el("h2", {}, [
+      document.createTextNode(CATEGORY_META[cat].label + " "),
+      el("span", {class:"count", text:"(" + rulesInCat.length + ")"})
+    ]));
+    section.appendChild(el("p", {class:"category-desc", text: CATEGORY_META[cat].desc}));
+    rulesInCat.forEach(r => {
+      const globalIndex = RULES.indexOf(r);
+      section.appendChild(buildRuleCard(r, globalIndex));
+    });
+    container.appendChild(section);
+  });
+
+  updateProgress();
+}
+
+function highlightMatches(text, query) {
+  if (!query) return text;
+  return text;
+}
+
+function applyFilters() {
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const activeCat = document.querySelector(".category-nav button.active").dataset.cat;
+  document.querySelectorAll(".rule-card").forEach(card => {
+    const cat = card.dataset.cat;
+    const text = card.textContent.toLowerCase();
+    const catOk = activeCat === "all" || activeCat === cat;
+    const qOk = !q || text.includes(q);
+    card.classList.toggle("hidden", !(catOk && qOk));
+    if (qOk && q) card.open = true;
+  });
+  document.querySelectorAll("section.category").forEach(sec => {
+    const anyVisible = Array.from(sec.querySelectorAll(".rule-card")).some(c => !c.classList.contains("hidden"));
+    sec.classList.toggle("hidden", !anyVisible);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  render();
+
+  document.getElementById("search").addEventListener("input", applyFilters);
+
+  document.getElementById("category-nav").addEventListener("click", (e) => {
+    if (e.target.tagName !== "BUTTON") return;
+    document.querySelectorAll(".category-nav button").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    applyFilters();
+  });
+
+  document.getElementById("expand-all").addEventListener("click", () => {
+    document.querySelectorAll(".rule-card").forEach(d => d.open = true);
+  });
+  document.getElementById("collapse-all").addEventListener("click", () => {
+    document.querySelectorAll(".rule-card").forEach(d => d.open = false);
+  });
+
+  document.getElementById("export-json").addEventListener("click", () => {
+    const data = {};
+    RULES.forEach(r => { const c = loadComment(r.id); if (c.trim()) data[r.id] = {title: r.title, comment: c}; });
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "woodseer-date-rules-comments.json";
+    a.click();
+  });
+
+  document.getElementById("import-json").addEventListener("click", () => {
+    document.getElementById("import-file").click();
+  });
+  document.getElementById("import-file").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        Object.keys(data).forEach(id => saveComment(id, data[id].comment || ""));
+        location.reload();
+      } catch (err) {
+        alert("Could not read that file as exported comment JSON.");
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("export-md").addEventListener("click", () => {
+    let md = "# Woodseer Date Rules - Refactor Audit\n\nCompiled by Eddard · source: /home/jcervan/Woodseer-app · 2026-07-07\n\n";
+    let currentCat = null;
+    RULES.forEach((r, i) => {
+      if (r.cat !== currentCat) {
+        currentCat = r.cat;
+        md += "\n## " + CATEGORY_META[currentCat].label + "\n" + CATEGORY_META[currentCat].desc + "\n\n";
+      }
+      md += "### " + (i+1) + ". " + r.title + "\n\n";
+      md += "**Citation:** " + r.cite.join(", ") + "\n\n";
+      md += r.explanation + "\n\n";
+      md += "**Example**\n```\n" + r.example + "\n```\n\n";
+      md += "**Refactor note:** " + r.note + "\n\n";
+      const comment = loadComment(r.id);
+      if (comment.trim()) md += "**Comment:** " + comment + "\n\n";
+    });
+    const blob = new Blob([md], {type:"text/markdown"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "woodseer-date-rules-report.md";
+    a.click();
+  });
+});
+</script>
