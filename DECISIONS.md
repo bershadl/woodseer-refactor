@@ -281,3 +281,17 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Missing Ticker/ISIN" item).
 
 **Status:** Design redirected to a web-research AI agent per infrastructure constraints; real in-scope gap quantified at 8,875; root cause of zero historical tasks identified as an invocation-model gap, not a check-logic bug. Fix/agent not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — Security Is Being Taken Over auto-approval — safest, cleanest candidate on the whole Priority-2 list
+
+**Mechanism:** `TakeoverCheck` (`app/tasks/takeover_check.rb`) fires when a real EDI corporate action of type `TAKEOVER` was created for the security within the last 30 days — a pure factual notification (close date, compulsory acquisition date, target %, status) derived directly from confirmed vendor data. No real judgment call exists in the check's own logic.
+
+**Live evidence — the cleanest validation found in this entire review:** 2,912 total tasks all-time, **100% approved (`state = CHECKED`), zero ever rejected**, spanning 2018-07-25 through yesterday (2026-07-08) — the same continuous ongoing-burden pattern as every other Priority-2 item (same two people account for 61.8% and 33.6% of resolutions). Unlike every other item on this list, there is no historical counter-evidence at all: not a single rejection across 2,912 instances over 8 years.
+
+**Recommendation:** this is the safest and simplest automation candidate identified across the whole Priority-2 review — no threshold decision (unlike the ADR/currency items), no scope ambiguity, and a perfect historical track record with zero exceptions. Straightforward to auto-approve on detection exactly as Mark proposed.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Security Is Being Taken Over" item).
+
+**Status:** Root cause and real-world scale confirmed, live data validates "always approved" with zero exceptions. Fix not yet implemented (documentation-only phase). This closes out the full Priority-2 automation list — all 12 items now reviewed (Duplicate Dividend was covered earlier under the Highest-Priority item-1 finding).
