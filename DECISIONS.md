@@ -113,3 +113,17 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, "China / India settlement cycle" item).
 
 **Status:** Planning notes only — mechanism and current state confirmed live, no `settlement_periods` rows have been inserted, no code or data changes made (documentation-only phase, and this one specifically involves a live data write that's out of scope for this repo's current phase regardless).
+
+---
+
+## 2026-07-09 — "Security Has Insufficient Forecasts" automation already exists
+
+**Finding (Priority-2 automation list, working bottom-up):** Mark's ask — "regen fixes in most cases, provided analyst flag = none and there are two years of history; automatically run a regen if both conditions are met" — is **already implemented**. `InsufficientForecastWorker` (`app/workers/insufficient_forecast_worker.rb`) runs daily (`config/clock.rb`: `every(1.day, 'Insufficient Forecast Worker', at: '**:50')`) and force-regenerates (`RegenerateSecurityWorker.perform_later(id, 'force_autopublish')`) any covered security whose forecast horizon has fallen short, for both the standard 2-year case and a 4-year case for index members.
+
+**Live evidence:** zero outstanding `MISSING_FORECAST` (task_type 9) tasks exist anywhere in the system right now, across every `analyst_flag` value — not just the flag=nil case Mark described. The daily worker keeps forecast horizons topped up proactively, so the task type rarely gets a chance to surface a gap at all.
+
+**One real discrepancy worth reconciling with Mark, not a bug:** the worker's `flagged_expecting_forecasts` scope (`share.rb:89`) covers `analyst_flag IS NULL` **or any flag not in `FLAGS_MEANING_NO_FORECAST`** — broader than "flag = none." It also force-regenerates securities flagged `NO_PATTERN`/`NO_DIVIDENDS`/`INSUFFICIENT_HISTORY`/`TAKEOVER_IN_PROGRESS`. Arguably correct (those flags don't mean "stop forecasting"), but Mark should confirm he's aware this already exists and that the broader scope is intentional, rather than treating this as a from-scratch build.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Security Has Insufficient Forecasts" item).
+
+**Status:** No action needed — automation already exists and is confirmed working live. Recommend closing this out with Mark rather than building anything.
