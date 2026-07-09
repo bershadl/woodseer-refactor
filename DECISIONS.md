@@ -215,3 +215,23 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Dividend Currency Does Not Match Declared Currency" item).
 
 **Status:** Root cause and real-world scale confirmed; scope (which currency pairs qualify for auto-approval) is an open question for Mark to weigh in on, not yet decided. Fix not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — Significant Dividend Amount Change auto-approval — largest, cleanest automation candidate found
+
+**Mechanism:** `BigDividendAmountChangeCheck` (`app/tasks/big_dividend_amount_change_check.rb`) fires whenever a dividend's adjusted amount more than doubles or less than halves versus the matching prior-year dividend (same position/frequency/currency) — with no check on the triggering dividend's `status`/`source`. An algorithm making a risky projection and EDI confirming a real declared change are treated identically today.
+
+**Live evidence — largest volume and most sustained burden found in this review:** 26,355 total tasks all-time, **100% processed** (0 outstanding), spanning 2017-11-28 through **literally this morning** (2026-07-09 09:51) — continuous activity for ~9 years with no sign of slowing. The same person as the Dividend Cut / Currency Mismatch items accounts for 18,320 of 26,355 (69.5%); another individual contributes 6,172 more.
+
+**Status/source breakdown of the triggering dividend confirms Mark's exact proposed rule cleanly, with almost no caveats needed:**
+- **DECLARED + EDI: 20,962 (79.5%)** — exactly "EDI-confirmed declared change," Mark's proposed auto-approve condition.
+- DECLARED + ANALYST: 916 — a manual (non-EDI) declaration, correctly excluded by the "EDI-confirmed" wording.
+- FORECAST + ALGORITHM/ANALYST: 228 combined — the actual risk case this check exists to catch (an unconfirmed projection making a big jump on its own), correctly excluded.
+- REMOVED_FORECAST: 2,394 combined, and DELETED_BY_PROVIDER/CANCELLED_BY_ISSUER: 481 combined — dividends being cleared or cancelled outright, a different scenario from "amount changed," reasonably left as manual review.
+
+**Recommendation:** this is the strongest, cleanest automation candidate identified across the whole Priority-2 list — highest all-time volume, most sustained ongoing burden, and the proposed rule (`status == DECLARED && source == EDI`) maps almost exactly onto the 79.5% that should be safe, while the remaining ~20.5% naturally falls into categories that clearly should stay manual under the same logic Mark already articulated. Worth prioritizing first among the amount/currency-type automations.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Significant Dividend Amount Change" item).
+
+**Status:** Root cause and real-world scale confirmed, proposed rule validated against live data at 79.5% coverage. Fix not yet designed or implemented (documentation-only phase).
