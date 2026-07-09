@@ -4,4 +4,22 @@ Finalized refactor/improvement decisions for Woodseer-app. Each entry is somethi
 
 Format per entry: date, decision, source (which report/discussion it came from), status.
 
-_No decisions finalized yet — reports in `reports/` are raw audit material awaiting review._
+## 2026-07-09 — Duplicate Dividend check needs frequency-awareness
+
+**Decision:** `DuplicateDividendCheck` (`app/tasks/duplicate_dividend_check.rb:20`) must check dividend frequency before applying its `< 11 day` proximity threshold, not instead of it. As written, any two dividends within 11 days sharing an amount or flag get flagged — so every weekly-paying ETF trips this on every run, since consecutive weekly dividends are always ≤7-9 days apart. Not a rare false positive; guaranteed for that entire class of security.
+
+**Source:** `WOODSE_1.DOC` (Mark, "Duplicate Dividend" item) + `reports/analyst-tasks-report.html`. Live-confirmed 2026-07-09: 5 weekly-ETF duplicate tasks fired in one 5-minute batch (task IDs 4904548-4904552), all "Week N vs Week N+1" collisions.
+
+**Status:** Root cause confirmed, fix direction agreed. Not yet implemented (this repo is documentation-only for now).
+
+---
+
+## 2026-07-09 — Regen can create a second partial declaration for the same dividend event
+
+**Decision:** Confirmed as a real bug, not just a theoretical concern. When EDI issues two corporate-action rows for the same real dividend (e.g. original notice + amendment) before either is fully declared, `DividendGenerator#create_forecasts_from_partial_corporate_actions` (`app/forecasting/dividend_generator.rb:69-77`) processes them in sequence: the first row correctly matches and updates the existing partial-declaration dividend, but immediately marks that dividend's ID as "assigned" (`instance_assigned`, `app/versioning/dividend_instance_manager.rb:14-16`), which excludes it from matching for the rest of the run. The second row for the same event then fails to find a match and creates a brand-new dividend instance instead of updating the first.
+
+**Live evidence:** share_id 289684, dividends 9446266 (Interim, position 1) and 9446267 (Final, position 2), both frequency=BIANNUALLY, both still undeclared (no `declaration_date`). Two signals confirm same-event duplication rather than legitimate distinct dividends: identical amount to 5 decimal places (9.12004 on both), and adjacent EDI event IDs (remote_id `DIV-4679239` / `DIV-4679241`, gap of 2) — contrast with a same-security same-frequency pair on share 277849 that turned out legitimate (different amounts, event IDs 86 apart, normal quarterly progression).
+
+**Source:** `WOODSE_1.DOC` (Mark, "Partial declaration handling" item).
+
+**Status:** Root cause confirmed, live example identified. Fix not yet designed or implemented (documentation-only phase).
