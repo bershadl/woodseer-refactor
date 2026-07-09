@@ -143,3 +143,15 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Dividend Frequency Does Not Match Previous" item).
 
 **Status:** Root cause confirmed and quantified with a concrete live example; Mark's proposed approach (spacing-based inference) is well-founded, not just a nice-to-have. Fix not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — "Delisted Security with Forecasts" automation: not viable
+
+**Decision (Jose's call):** Flagged impossible, not pursued further. `DelistedSecurityForecastCheck` (`app/tasks/delisted_security_forecast_check.rb`) fires on `primary_listing.delisted? && has_forecast?`. Mark's proposal was to automate covered-status removal once delisting is confirmed against a reliable source, contingent on that source actually being trustworthy.
+
+**Partial rationale found before this was called off:** only two code paths in the entire app ever assign `Listing#list_status` — `shares_creator.rb:28` (sets `ACTIVE_LISTING` on creation) and `listing_status_change_processor.rb:36` (sets `DELISTED`, triggered by an EDI `LSTAT`/`field3: 'D'` corporate action). There is no code path anywhere that reverses a delisting back to active — so if that signal is ever wrong, there's currently no automated recovery, only a manual fix. Live verification of whether this has actually happened (checking `Listing`'s PaperTrail history for delisted→active reversals) was not completed before Jose ruled this out.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Delisted Security with Forecasts" item).
+
+**Status:** Not viable, per Jose. No further investigation planned.
