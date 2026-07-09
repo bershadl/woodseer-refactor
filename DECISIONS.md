@@ -35,3 +35,19 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, "Draft series management" item).
 
 **Status:** Root cause confirmed, live example identified (security 122504). Fix not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — Analyst-flag-dismissed tasks resurface with no way to suppress them
+
+**Decision:** Two checks don't respect a prior analyst dismissal the way an analyst would expect:
+- `DividendFrequencyChangeCheck` (`app/tasks/dividend_frequency_change_check.rb`) never references `analyst_flag` at all — it flags any consecutive dividends with differing `frequency`, so a genuinely irregular payer trips it on every newly-forecasted future dividend with no possible flag-based suppression.
+- `IncompleteFiscalYearCheck` (`app/tasks/incomplete_fiscal_year_check.rb:9`) only excludes `FLAGS_MEANING_NO_FORECAST` (`ACQUIRED`/`CEASED_TRADING`/etc.), not `FLAGS_MEANING_FORECAST_NOT_REQUIRED` (`NO_PATTERN`/`NO_DIVIDENDS`/`INSUFFICIENT_HISTORY`) — so setting `NO_PATTERN`, the natural flag for an irregular payer, doesn't suppress it either.
+
+**Live evidence:** share_id 79369 (SecurityID 211145) — `DIVIDEND_FREQUENCY_CHANGE` (task_type 13) dismissed by two different analysts (user 2 on 2026-02-12, user 137 on 2025-10-15), then 6 fresh instances appeared 2026-07-09, one per newly-rolled-forward forecast dividend (2026 through 2028), each showing the same Triannually↔Irregularly oscillation. `INCOMPLETE_FISCAL_YEAR` (task_type 34) dismissed by user 137 (2025-10-15), 2 fresh instances appeared the same day (fiscal years 2026, 2027).
+
+**Open question, not yet root-caused:** this security's `flag_set_at` is stamped 2026-02-12 10:35:38 (6 seconds after that day's dismissal) but `analyst_flag` is currently empty — a flag was set and later cleared without `flag_set_at` being reset. Worth investigating separately; not required for the two findings above, which hold regardless of this security's specific flag history.
+
+**Source:** `WOODSE_1.DOC` (Mark, "Analyst flag re-surfacing tasks" item).
+
+**Status:** Root cause confirmed for two specific checks, live example identified (share 79369). Fix not yet designed or implemented (documentation-only phase).
