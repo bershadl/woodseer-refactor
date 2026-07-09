@@ -85,3 +85,31 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, "Maiden dividend task scope" item).
 
 **Status:** Root cause confirmed, quantified at scale (13.6% of all-time volume), live examples identified. Fix not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — China/India settlement cycle change (T+0 / T+1) — planning notes, not yet actioned
+
+**Request:** Mark wants China shares set to T+0 and India shares set to T+1 settlement. Explicitly flagged by Mark as needing careful planning — this entry documents what that planning needs to cover, no change has been made.
+
+**Mechanism:** `SettlementPeriod` (`app/models/settlement_period.rb`) — effective-dated rows per `stock_exchange_id`. `DateCalculator#ex_date_record_date_diff` (`date_calculator.rb:21-24`) picks the most recent row with `effective_date <= date`, defaulting to `1` day if no row exists at all (`record&.days || 1`) — a silent default, not a logged warning (already flagged in the original date-rules audit).
+
+**Current live state (checked 2026-07-09, zero rows for any of these exchanges):**
+- China equity exchanges: Shanghai Stock Exchange (id 59), Shenzhen Stock Exchange (id 62). (Excluded: China Unlisted Bond id 160, Inter-Bank Bond Market id 161 — not equity exchanges, not in scope.)
+- India equity exchanges: National Stock Exchange of India (id 2), BSE Ltd. (id 95), Metropolitan Stock Exchange of India (id 28). (Excluded: India Unlisted Bond id 239, Reserve Bank of India id 240.)
+- **None of these 5 exchanges have any `settlement_periods` row on file.** Both countries are currently at T+1 purely via the silent fallback default, not through deliberate configuration.
+
+**What this means for the request:**
+- **China → T+0** is a genuine behavior change (1 → 0), needs a new row inserted for *both* Shanghai and Shenzhen separately (they're independent exchange IDs, not one "China" setting).
+- **India → T+1** already matches the current accidental default — this is really "formalize the existing default into an explicit row" rather than a behavior change, but still worth doing properly (across NSE, BSE, and Metropolitan) rather than continuing to rely on the undocumented fallback.
+
+**Planning considerations (why Mark is right to flag this as needing care):**
+1. **`effective_date` choice matters** — these are effective-dated rows; whichever date is chosen is when the new value starts applying going forward. It does not retroactively touch already-settled historical dividends.
+2. **Override interaction with learned date rules** — per the original audit (`date_forecaster.rb:279-282,105-115`, `should_override_date_rule?`), once a `settlement_periods` row exists covering the forecast date, it overrides any per-security *learned* ex-date/record-date pattern for that exchange. Adding the China row doesn't just correct the default — it will supersede whatever date-rule pattern the algorithm has independently learned from real historical EDI data for every Shanghai/Shenzhen-listed security. Blast radius is larger than "change one number."
+3. Multiple exchanges per country need separate rows — this isn't a single-row change per country.
+
+**Side note, separate from this decision:** confirmed live that `settlement_periods` exists in production Postgres, but is missing from the checked-out `db/schema.rb` (only the legacy singular `stock_exchanges.settlement_period` column shows there, unpopulated for all 5 exchanges above). The local schema file is stale relative to production; worth a `db:schema:dump` refresh independent of this decision.
+
+**Source:** `WOODSE_1.DOC` (Mark, "China / India settlement cycle" item).
+
+**Status:** Planning notes only — mechanism and current state confirmed live, no `settlement_periods` rows have been inserted, no code or data changes made (documentation-only phase, and this one specifically involves a live data write that's out of scope for this repo's current phase regardless).
