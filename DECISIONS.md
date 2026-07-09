@@ -249,3 +249,19 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Analyst Estimate Follows a Recent Ratio" item).
 
 **Status:** Root cause confirmed, mechanism is architecturally clean and ready to build (no open threshold/scope decision, unlike several other Priority-2 items). Fix not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — Invalid KR/JP Record Date: two distinct findings (scope gap + false-positive pattern)
+
+**Scope gap, separate from the auto-approval question:** despite the task type name (`INVALID_ASIAN_RECORD_DATE`) and Mark's own wording ("KR or JP"), `AsianRecordDateCheck#skip_security?` (`asian_record_date_check.rb:17-19`) only references `StockExchange::JAPAN_STOCK_EXCHANGE_IDS` — `KOREA_STOCK_EXCHANGE_IDS` (a separate, distinct constant) is never checked. Korea-listed securities never get this validation at all, contradicting the apparent intent of both the task type's name and Mark's description.
+
+**False-positive pattern, live-confirmed:** the check assumes every Japan dividend's record date must be the exact calendar end-of-month (`d.record_date != d.record_date.end_of_month`) — but this doesn't hold for every Japan-listed security. Share 88769's full dividend history back to 2022, every occurrence **`status=DECLARED, source=EDI`** (real, vendor-confirmed, not estimated), shows record date on the **20th of the month** every single time, alternating Final/Interim every 6 months — a genuine, 6+ year established convention, not end-of-month at all. The two "invalid" tasks flagged for this security (2028-11-20, 2029-05-20) are the algorithm's own forecasts *correctly continuing that exact real pattern* — the check flags correct behavior as an error. At least 7 other securities in the live data show the same recurring day-of-month signature (10th, 15th, 20th, 30th, each consistently repeating in 6-month pairs), suggesting this is a systemic pattern, not one outlier security.
+
+**Refined framing of Mark's proposed fix:** rather than "auto-approve dates that fall under the acceptable pattern of end-of-month" (which reads as adding one more hardcoded exception), the data suggests the better fix is comparing a flagged forecast's day-of-month against **that specific security's own historical EDI-confirmed record-date pattern**, and only flagging genuine deviations from *that* security's established convention — not deviations from a blanket end-of-month assumption that several real securities simply don't follow.
+
+**Live volume:** 2,061 total tasks all-time, 100% processed, spanning 2018-08-01 through literally this morning (2026-07-09 10:48) — same continuous ongoing-burden pattern as the other Priority-2 items.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Invalid KR or JP Record Date" item).
+
+**Status:** Both findings confirmed live. Fix not yet designed — needs to address the Korea scope gap and replace the blanket end-of-month assumption with a per-security historical-pattern comparison (documentation-only phase).
