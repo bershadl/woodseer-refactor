@@ -23,3 +23,15 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, "Partial declaration handling" item).
 
 **Status:** Root cause confirmed, live example identified. Fix not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — Draft series created and discarded daily for securities with no real dividend changes
+
+**Decision:** `CorporateActionImporter#security_ids` (`app/algo/corporate_action_importer.rb:84-87`) triggers a full `RegenerateSecurityWorker.perform_later(id, 'autopublish')` for any covered security touched by a new corporate action, filtering out only `eventcd: 'AGM'` — every other corporate action type (ticker changes, ISIN updates, listing changes, etc., regardless of dividend relevance) forces a complete regen cycle. When the regenerated forecast matches what's already published, `RegenerateSecurityWorker#publish_or_discard_series` (`regenerate_security_worker.rb:87-95`) destroys the just-created draft. Needs a filter so only corporate-action types that can actually affect a dividend forecast trigger regen.
+
+**Live evidence:** security_id 122504 — `DividendSeries` PaperTrail history shows 4899 automated `destroy` events (system-triggered, `whodunnit` blank) across 1645 distinct calendar days from 2021-08-02 to 2026-05-06, vs. only 13 events total attributed to real users (whodunnit 2 and 137) over the same 4.5-year span. Essentially pure automation churn with almost no genuine analyst interaction.
+
+**Source:** `WOODSE_1.DOC` (Mark, "Draft series management" item).
+
+**Status:** Root cause confirmed, live example identified (security 122504). Fix not yet designed or implemented (documentation-only phase).
