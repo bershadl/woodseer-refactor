@@ -179,3 +179,19 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "EDI Data Does Not Match Analyst Data" item).
 
 **Status:** Threshold decision still open — data gathered above is meant to inform it. No code or automation built yet (documentation-only phase).
+
+---
+
+## 2026-07-09 — Stale Analyst Flag (Dividend Cut) resumption automation — no historical evidence this scenario occurs
+
+**Request:** Mark proposes that once a `DIVIDEND_CUT`-flagged security's resumption is confirmed via new EDI data, a script should clear the flag, insert zero-dividend entries for the years nothing was paid (to satisfy the 2-year-history requirement), and trigger a regen — replacing the current `StaleAnalystFlagCheck` (`app/tasks/stale_analyst_flag_check.rb`) task with an automated fix.
+
+**Existing building block:** `AnalystDividendInstanceCreator` (`app/dividends/analyst_dividend_instance_creator.rb`) already supports creating a "nil dividend" instance (amount=nil, `disbursement_type: NIL_DIVIDEND`) — this is the existing manual tool analysts use today for exactly this kind of backfill. It requires an existing draft series and explicit per-year params though; it doesn't itself compute which years are missing, so the automation would need new logic for that part.
+
+**Live evidence — reason for caution:** `STALE_ANALYST_FLAG` (task_type 20) has only **2 tasks in its entire history**, both created today (2026-07-09), and **neither is for a `DIVIDEND_CUT` flag** — one is `INSUFFICIENT_HISTORY` (flag=6), the other `WINDING_UP` (flag=10). The specific scenario Mark's item targets — a dividend-cut flag going stale because the company resumed paying, confirmed via new EDI data — has zero recorded occurrences through this detection path in the system's history.
+
+**Recommendation:** worth confirming with Mark whether this is a real, anticipated-but-not-yet-seen scenario worth building ahead of need, or whether it should be deprioritized until it actually happens at least once — building and maintaining an automation (including the backfill-logic and regen orchestration) for a zero-occurrence scenario is a different cost/benefit case than the other Priority-2 items, which all have real historical volume behind them.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Stale Analyst Flag (Dividend Cut)" item).
+
+**Status:** Not built. Flagging the zero-occurrence finding for Mark/Jose to weigh before deciding whether to prioritize this.
