@@ -155,3 +155,27 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Delisted Security with Forecasts" item).
 
 **Status:** Not viable, per Jose. No further investigation planned.
+
+---
+
+## 2026-07-09 — EDI/Analyst amount mismatch auto-resolution for ADRs — threshold not yet decided
+
+**Request:** Mark proposes auto-deleting and regenerating the forecast for ADR (`DR` security_type) amount mismatches below a threshold, rather than always creating an `EDI_DATA_DOES_NOT_MATCH_MANUAL` task. Threshold value is an open decision, not yet made — this entry documents the data gathered to inform it.
+
+**Current mechanism:** `EdiDividendComparator#different_amount?` (`edi_dividend_comparator.rb:39-44`) is an exact-equality check today — any difference at all, including rounding artifacts, triggers the task. No tolerance exists.
+
+**Live distribution (105 total ADR amount-mismatch tasks, all-time):**
+- 23.8% within 1%, 39.0% within 2%, 61.0% within 5%, 74.3% within 10%
+- Median difference: 3.2%. Average: 29.0% — heavily right-skewed by outliers, not representative of the typical case.
+
+**The outliers are not just "bigger" — they're two distinct, identifiable failure modes, not noise:**
+1. **Systematic/recurring ratio error:** share_id 68882 shows a ~406% mismatch on three separate occasions (2023-12, 2024-12, 2025-07), each time EDI ≈ 5.06x the analyst amount. Not FX drift — a persistent conversion/ratio problem specific to this security. Auto-regenerating would reproduce the same wrong value again, not fix anything.
+2. **Decimal/unit error:** share_id 68348 — EDI=0.3049 vs Analyst=30.49, a clean 100x factor. Looks like a cents-vs-dollars or stray `*100`/`/100` bug, not a real business discrepancy.
+
+**Recommendation to inform the threshold decision (not a final call):**
+- A pure percentage cutoff around 5% would auto-resolve a meaningful majority (61%) of historical cases, in a range consistent with ordinary FX-timing noise.
+- But large-and-recurring mismatches on the same security, and suspiciously clean-ratio mismatches (100x, possibly 5x/10x patterns), should be excluded from auto-resolution regardless of magnitude — these indicate a structural data/config problem that regen would mask, not fix. Worth a repeat-offender guard (e.g., skip auto-resolve if this security had 2+ mismatches in the trailing N months) in addition to whatever percentage threshold is chosen.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "EDI Data Does Not Match Analyst Data" item).
+
+**Status:** Threshold decision still open — data gathered above is meant to inform it. No code or automation built yet (documentation-only phase).
