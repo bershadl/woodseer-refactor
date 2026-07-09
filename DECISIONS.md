@@ -265,3 +265,19 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Invalid KR or JP Record Date" item).
 
 **Status:** Both findings confirmed live. Fix not yet designed — needs to address the Korea scope gap and replace the blanket end-of-month assumption with a per-security historical-pattern comparison (documentation-only phase).
+
+---
+
+## 2026-07-09 — Missing Ticker/ISIN: infrastructure constraint changes the design, and a systemic invocation gap explains zero historical tasks
+
+**Design correction (Jose):** Mark's proposed fix — query IvyDB directly by known identifiers to auto-populate the missing field — isn't viable. Woodseer's Heroku infrastructure has no network path to OptionMetrics' internal IvyDB (PSQL10x) systems; they're not in the same ecosystem. The right approach instead is a rule-based AI agent that does web research (known reliable sources — exchange listing pages, ISIN registries, etc.) using whatever identifiers are already known (company name, exchange, the other non-missing identifier), then updates the record.
+
+**Real scope of the gap:** 298,822 active primary listings are currently missing ticker and/or ISIN, but 289,947 (97%) are `coverage_type=9` (not covered) — genuinely outside this check's universe and not relevant to Woodseer's product. The real, in-scope number is **8,875** (`coverage_type=3`: 8,874, `coverage_type=4`: 1).
+
+**Why `MISSING_TICKER_AND_ISIN_CHECK` has zero tasks in its entire history despite 8,875 real in-scope gaps — not a bug, an invocation-model gap:** `MissingTickerAndIsinCheck` is correctly wired into `AnalystTaskRunner` (`analyst_task_runner.rb:92`), and `Share#covered?` (`share.rb:130-132`) correctly includes tier 3. But mapping every caller of `AnalystTaskRunner` shows it is **entirely event-driven, per-security** — triggered by a regen completing, a corporate action landing, an admin editing that specific security/listing, a portfolio addition, a dividend series publishing. The *only* thing that runs on an actual daily schedule (`config/clock.rb:14`) is `DailyAnalystTaskRunner`, which only calls `PassedEstimateCheck` and `MissingForecastCheck` — a much narrower list that excludes `MissingTickerAndIsinCheck` entirely. So a security whose ticker/ISIN has been missing since it was first created, with nothing happening to it since (no corporate action, no regen, no manual touch), may simply never have had `AnalystTaskRunner` invoked for it at all — not a defect in the check's own logic, a structural blind spot in how it gets triggered.
+
+**Broader implication, worth flagging beyond this one item:** the same blind spot likely applies to every other check in the full `AnalystTaskRunner` list that isn't *also* in `DailyAnalystTaskRunner`'s narrow daily set — dormant securities with data gaps in any of those ~50 other checks could similarly go unexamined indefinitely. Worth a systemic look, not just a ticker/ISIN-specific fix.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Missing Ticker/ISIN" item).
+
+**Status:** Design redirected to a web-research AI agent per infrastructure constraints; real in-scope gap quantified at 8,875; root cause of zero historical tasks identified as an invocation-model gap, not a check-logic bug. Fix/agent not yet designed or implemented (documentation-only phase).
