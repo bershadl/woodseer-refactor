@@ -127,3 +127,19 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Security Has Insufficient Forecasts" item).
 
 **Status:** No action needed — automation already exists and is confirmed working live. Recommend closing this out with Mark rather than building anything.
+
+---
+
+## 2026-07-09 — Dividend frequency should be inferred from date spacing, not trusted from the EDI code
+
+**Decision:** `DividendFrequencyIdentifier.identify` (`app/calculators/dividend_frequency_identifier.rb:38-50`) maps the raw EDI `field2` code directly to a frequency label via a `case` statement covering only 7 of the ~25 codes documented in its own comment block (`WKL`/`MNT`/`BIM`/`QTR`/`SMA`/`TRM`/`ANL`) — everything else (`REG`, `VAR`, `ARR`, `ONE`, `11M`, `35D`, `DLY`, etc.) silently falls into `else return Dividend::IRREGULARLY`.
+
+**But the deeper problem, confirmed live, is worse than incomplete code coverage:** on share 79369 (SecurityID 211145, the same security from the item-4 finding), the *actual* ex-date spacing since 2023 has been consistently ~90-108 days (quarterly-ish) or ~166-184 days (the corresponding gap), genuinely regular — but the EDI `field2` codes across those same events are `SMA, SMA, SMA, IRG, TRM, IRG, QTR, TRM, IRG`. Most of these are *already-mapped, valid* codes (SMA/TRM/QTR), not just unmapped catchalls — meaning the vendor itself codes a consistent real-world cadence inconsistently, event to event. Expanding the `case` statement to cover more EDI codes would not fix this specific oscillation, since the instability isn't primarily about missing codes.
+
+**Mark's proposed fix is the right one:** compute frequency from the actual spacing between historical dividend dates and pick the best-fit frequency, rather than trusting the EDI-provided code per event. This would produce a stable classification for genuinely regular payers regardless of how inconsistently the vendor codes each individual event, and would directly resolve the `DividendFrequencyChangeCheck` resurfacing problem from the earlier finding at its source rather than just suppressing the symptom.
+
+**Unconfirmed side note:** the class's own comment documents the weekly EDI code as `WKY` (line 37) while the `case` checks for `'WKL'` (line 41) — possible typo, not verified live (this security's data has no weekly-coded events to test against).
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Dividend Frequency Does Not Match Previous" item).
+
+**Status:** Root cause confirmed and quantified with a concrete live example; Mark's proposed approach (spacing-based inference) is well-founded, not just a nice-to-have. Fix not yet designed or implemented (documentation-only phase).
