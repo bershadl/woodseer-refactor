@@ -235,3 +235,17 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Significant Dividend Amount Change" item).
 
 **Status:** Root cause and real-world scale confirmed, proposed rule validated against live data at 79.5% coverage. Fix not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — Analyst Estimate Follows a Recent Ratio auto-delete-and-regen — clean mechanism, real ongoing volume
+
+**Mechanism:** `RatioWithManualEstimatesCheck#find_ratio` (`app/tasks/ratio_with_manual_estimates_check.rb:9-16`) already detects the exact condition Mark describes: a real `ShareRatio` record with a significant multiplier (`inverse_multiplier < 0.8 || > 1.2`) whose `effective_date` falls between the security's last declared dividend and its last analyst-sourced forecast — meaning the analyst's manual estimate predates a split/consolidation and is now stale. Unlike the ADR-mismatch or currency-pair items, there's no threshold or scope ambiguity here — the check's existing trigger condition already *is* the precise condition for Mark's proposed fix (delete the stale estimate, regen). The only new work is wiring the fix instead of just flagging it.
+
+**Live evidence — same ongoing-burden pattern, smaller scale:** 1,824 total tasks all-time, 100% processed, spanning 2018-05-16 through 2026-06-25 (about 2 weeks ago) — roughly 228/year, lower frequency than the Currency Mismatch or Amount Change items but still a real, continuous burden. Same two people as those items account for 67.9% and 24% of resolutions respectively.
+
+**Cross-reference for whoever implements this:** the "regen" step this automation would trigger runs through the same `DividendGenerator`/`RegenerateSecurityWorker` pipeline already implicated in the item-2 (partial-declaration duplicate) and item-3 (draft-series churn) findings earlier in this doc — worth being aware of those existing quirks rather than treating regen as a black box when designing this.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Analyst Estimate Follows a Recent Ratio" item).
+
+**Status:** Root cause confirmed, mechanism is architecturally clean and ready to build (no open threshold/scope decision, unlike several other Priority-2 items). Fix not yet designed or implemented (documentation-only phase).
