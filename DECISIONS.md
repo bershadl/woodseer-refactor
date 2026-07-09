@@ -73,3 +73,15 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, "Remove Symphony users from Dashboard" item).
 
 **Status:** Confirmed removal candidate for the admin page specifically, no code changes made yet (documentation-only phase).
+
+---
+
+## 2026-07-09 — Maiden Dividend check fires on non-cash first distributions
+
+**Decision:** `MaidenDividendCheck#has_one_dividend?` (`app/tasks/maiden_dividend_check.rb:8-14`) checks dividend count, `extant?`, recency, and `source` — but never checks `disbursement_type`. A security's first-ever "dividend" record can be a non-cash distribution (stock/scrip dividend, capital repayment, etc.) and still trigger a "Maiden Dividend" task, incorrectly treating "first-ever distribution happens to be non-cash" the same as "company just started paying real cash dividends." Fix: exclude non-`CASH` disbursement types (`disbursement_attributes.rb`: `CASH = 1`) from qualifying as a maiden dividend.
+
+**Live evidence:** of 959 total `MAIDEN_DIVIDEND` tasks ever created, 130 (~13.6%) were not cash: 70 `STOCK` (share-based/scrip dividends — the closest literal match to Mark's "share splits" wording), 47 `CAPITAL_REPAYMENT`, 5 `CASH_AND_STOCK`, 5 `NIL_DIVIDEND` (arguably the clearest case — firing on something that wasn't a real distribution at all), 3 `INSTALLMENT`. Three recent concrete examples (task IDs 4903725, 4887079, 4847717; May-July 2026): each has a blank `amount` and a populated `shares_received` (1.0, 3.0, 1.0) — unambiguously non-cash.
+
+**Source:** `WOODSE_1.DOC` (Mark, "Maiden dividend task scope" item).
+
+**Status:** Root cause confirmed, quantified at scale (13.6% of all-time volume), live examples identified. Fix not yet designed or implemented (documentation-only phase).
