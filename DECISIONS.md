@@ -199,3 +199,19 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Stale Analyst Flag (Dividend Cut)" item).
 
 **Status:** Root cause and real-world scale confirmed — this is one of the stronger automation candidates on the list (real, high-volume, currently 100% manual). Fix/automation not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — Dividend Currency Mismatch auto-approval — real ongoing burden, but Mark's named scope may be too narrow
+
+**Mechanism:** `DividendCurrencyMatchCheck#create_task?` (`app/tasks/dividend_currency_match_check.rb:12-14`) is an exact-match check — any dividend whose `currency_code` differs from `@security.declaration_currency` fires a task, no exceptions.
+
+**Live evidence — same hidden-ongoing-labor pattern as the Dividend Cut item, at even larger scale:** 3,865 total tasks all-time, **100% processed** (0 currently outstanding), spanning 2017-11-27 through just 3 days ago (2026-07-06) — continuous activity for nearly 9 years, not a one-time cleanup. The same person as the Dividend Cut item accounts for 2,220 of 3,865 (57%), active across the entire span; another individual contributes 909 more. This is a large, real, sustained manual burden.
+
+**Scoping wrinkle — Mark's named pairs are real but not the majority:** counting both directions, China/Hong Kong (HKD↔CNY) is 736 occurrences and US/Canada (CAD↔USD) is 407 — combined ~29.6% of all-time volume. The rest is spread across other recurring pairs, several individually larger than either named pair's single direction: GBP↔USD alone is 655 (bigger than the entire US/Canada total), plus EUR↔USD (324), EUR↔GBP (163), various Nordic pairs, HKD/USD, MXN/USD, CNY/USD, CLP/USD, BMD/USD. A "currency blank" bucket of 356 tasks didn't match the parsing pattern used here — unexamined, worth a look before implementation.
+
+**Recommendation:** if the rationale for auto-approving is "known, structurally-expected currency-switching pairs," several of these other pairs (especially GBP/USD) likely qualify under the same logic and represent comparable or greater volume. Worth deciding the actual scope with Mark rather than narrowly building only the two pairs he named — the data suggests the real opportunity is broader.
+
+**Source:** `WOODSE_1.DOC` (Mark, Priority-2 list, "Dividend Currency Does Not Match Declared Currency" item).
+
+**Status:** Root cause and real-world scale confirmed; scope (which currency pairs qualify for auto-approval) is an open question for Mark to weigh in on, not yet decided. Fix not yet designed or implemented (documentation-only phase).
