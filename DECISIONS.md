@@ -51,3 +51,25 @@ Format per entry: date, decision, source (which report/discussion it came from),
 **Source:** `WOODSE_1.DOC` (Mark, "Analyst flag re-surfacing tasks" item).
 
 **Status:** Root cause confirmed for two specific checks, live example identified (share 79369). Fix not yet designed or implemented (documentation-only phase).
+
+---
+
+## 2026-07-09 — Remove "DividendMax Dividends Missing Pay Date" dashboard widget
+
+**Decision:** Confirmed safe, self-contained removal. Widget lives at `app/views/admin/dashboard/index.haml:8-10`, backed by `dashboard_controller.rb:8` (`Dividend.in_portfolio(TypeId::DIVIDENDMAX_PORTFOLIO_ID).extant.missing_pay_date...`), rendered by `_missing_pay_date.haml` as a plain read-only table (Security, Dividend, Ex-Date) with no action buttons or workflow — matches "never actioned" exactly. Checked for shared dependencies: the `Dividend.missing_pay_date` scope (`dividend.rb:36`) and the dedicated `admin/reports/_dividend.haml` partial it renders are each used in exactly one place — this widget. Nothing else breaks by deleting it. Note: this dashboard already has four other widgets commented out (`@securities_by_paying_clients`, three AGM ones) — this is the next one in an already-started cleanup that was never finished.
+
+**Source:** `WOODSE_1.DOC` (Mark, "DividendMax dividends missing pay date" item).
+
+**Status:** Confirmed removal candidate, no code changes made yet (documentation-only phase).
+
+---
+
+## 2026-07-09 — Remove Symphony Users admin page from Dashboard/nav
+
+**Decision:** Confirmed unused. `Admin::SymphonyUsersController` (index/new/create/edit/update) is a full CRUD admin page, linked from the nav (`shared/_drop_down_menu.haml:25-29`) — not a dead link, but a dead *feature*. Live data: 12 `symphony_users` (all approved), latest created/updated 2022-05-10; 33 `symphony_watchlists` rows, latest 2022-04-01. Zero activity in over 4 years.
+
+**Scope note:** this decision covers only the admin management page. The broader Symphony integration (`Symphony::PushNotification`, fired on every dividend series publish via `PostSecurityUpdateWorker`, plus a separate GraphQL watchlist API) is a distinct, larger question not addressed here — that worker broadcasts to all approved Symphony users for S&P 500 securities (doesn't even query `symphony_watchlists`) and is gated entirely behind `ENV['ENABLE_SYMPHONY_PUSH_NOTIFICATION']`. Whether to remove that too is a separate decision.
+
+**Source:** `WOODSE_1.DOC` (Mark, "Remove Symphony users from Dashboard" item).
+
+**Status:** Confirmed removal candidate for the admin page specifically, no code changes made yet (documentation-only phase).
