@@ -7,6 +7,7 @@ Confluence: https://optionmetrics.atlassian.net/wiki/spaces/DATAQA/pages/5320245
 ## Contents
 
 - `reports/` — audit reports of the current `Woodseer-app` codebase (date rules engine, analyst-task checks), cited to file:line, compiled 2026-07-07.
+- `reports/analyst-tasks-live-report.html` — live data report: real analyst-task volume by type, filterable by date range (defaults to 2020-05-01 to current), with automation-opportunity findings. Data snapshot as of the date in its own footer, not auto-refreshing — ask Eddard to regenerate it against current production Woodseer data when it goes stale.
 - `DECISIONS.md` — running log of finalized refactor decisions. This is the source of truth for what's already been agreed, and what gets pushed to Confluence.
 
 ## Workflow
